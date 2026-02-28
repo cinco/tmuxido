@@ -1,0 +1,44 @@
+kind: pipeline
+type: docker
+name: release
+
+trigger:
+  event:
+    - tag
+
+steps:
+  - name: build-x86_64
+    image: messense/rust-musl-cross:x86_64-musl
+    commands:
+      - cargo build --release --target x86_64-unknown-linux-musl
+      - cp target/x86_64-unknown-linux-musl/release/tmuxido tmuxido-x86_64-linux
+
+  - name: build-aarch64
+    image: messense/rust-musl-cross:aarch64-musl
+    commands:
+      - cargo build --release --target aarch64-unknown-linux-musl
+      - cp target/aarch64-unknown-linux-musl/release/tmuxido tmuxido-aarch64-linux
+
+  - name: publish
+    image: alpine
+    environment:
+      GITEA_TOKEN:
+        from_secret: gitea_token
+    commands:
+      - apk add --no-cache curl jq
+      - |
+        RELEASE_ID=$(curl -fsSL -X POST \
+          -H "Authorization: token $GITEA_TOKEN" \
+          -H "Content-Type: application/json" \
+          "https://git.cincoeuzebio.com/api/v1/repos/cinco/Tmuxido/releases" \
+          -d "{\"tag_name\":\"$DRONE_TAG\",\"name\":\"$DRONE_TAG\",\"body\":\"Release $DRONE_TAG\"}" \
+          | jq -r .id)
+        for ASSET in tmuxido-x86_64-linux tmuxido-aarch64-linux; do
+          curl -fsSL -X POST \
+            -H "Authorization: token $GITEA_TOKEN" \
+            "https://git.cincoeuzebio.com/api/v1/repos/cinco/Tmuxido/releases/$RELEASE_ID/assets" \
+            -F "attachment=@$ASSET"
+        done
+    depends_on:
+      - build-x86_64
+      - build-aarch64

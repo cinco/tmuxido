@@ -1,0 +1,19 @@
+[[windows]]
+name = "tmuxido"
+
+[[windows]]
+name = "editor"
+layout = "main-horizontal"
+panes = [
+  "code . ; claude --dangerously-skip-permissions",
+  "clear",
+  "clear"
+]
+
+# [[windows]]
+# name = "build"
+# panes = []
+
+# [[windows]]
+# name = "git"
+# panes = []

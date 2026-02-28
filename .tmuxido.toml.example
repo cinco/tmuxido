@@ -1,0 +1,255 @@
+# ============================================================================
+# Project-specific tmux session configuration
+# ============================================================================
+# Place this file as .tmuxido.toml in your project root directory
+#
+# This configuration will be used when opening this specific project.
+# If this file doesn't exist, the global default_session from
+# ~/.config/tmuxido/tmuxido.toml will be used.
+#
+# Compatible with any tmux base-index setting (0 or 1)
+# ============================================================================
+
+# ============================================================================
+# BASIC EXAMPLE: Single window with one pane
+# ============================================================================
+# [[windows]]
+# name = "editor"
+# panes = []  # Empty = just open a shell in the project directory
+
+# ============================================================================
+# INTERMEDIATE EXAMPLE: Single window with multiple panes and layout
+# ============================================================================
+# This creates the classic layout:
+# - Main pane on top (nvim)
+# - Two smaller panes below, side by side
+#
+# [[windows]]
+# name = "editor"
+# layout = "main-horizontal"
+# panes = [
+#     "nvim .",      # Pane 0: Opens nvim in project root
+#     "clear",       # Pane 1: Shell ready for commands
+#     "clear"        # Pane 2: Another shell
+# ]
+
+# ============================================================================
+# ADVANCED EXAMPLE: Multiple windows for a complete workflow
+# ============================================================================
+
+# Window 1: Editor with side terminal
+[[windows]]
+name = "editor"
+layout = "main-vertical"
+panes = [
+    "nvim .",           # Main pane: Editor
+    "clear"             # Side pane: Terminal for quick commands
+]
+
+# Window 2: Development server
+[[windows]]
+name = "server"
+panes = [
+    "npm run dev"       # Auto-start dev server
+]
+
+# Window 3: Git operations
+[[windows]]
+name = "git"
+panes = [
+    "git status",       # Show current status
+    "lazygit"           # Or use lazygit if installed
+]
+
+# Window 4: Database/Logs
+[[windows]]
+name = "logs"
+layout = "even-horizontal"
+panes = [
+    "tail -f logs/development.log",
+    "docker-compose logs -f"
+]
+
+# ============================================================================
+# PRACTICAL EXAMPLES BY PROJECT TYPE
+# ============================================================================
+
+# --- Frontend React/Vue/Angular Project ---
+# [[windows]]
+# name = "code"
+# layout = "main-horizontal"
+# panes = ["nvim .", "clear", "clear"]
+#
+# [[windows]]
+# name = "dev"
+# panes = ["npm run dev"]
+#
+# [[windows]]
+# name = "test"
+# panes = ["npm run test:watch"]
+
+# --- Backend API Project ---
+# [[windows]]
+# name = "editor"
+# layout = "main-vertical"
+# panes = ["nvim src/", "cargo watch -x run"]  # For Rust
+# # Or: panes = ["nvim .", "nodemon server.js"]  # For Node.js
+# # Or: panes = ["nvim .", "python manage.py runserver"]  # For Django
+#
+# [[windows]]
+# name = "database"
+# panes = ["psql mydb"]  # Or mysql, redis-cli, etc
+#
+# [[windows]]
+# name = "logs"
+# panes = ["tail -f logs/app.log"]
+
+# --- Full Stack Project ---
+# [[windows]]
+# name = "frontend"
+# layout = "main-horizontal"
+# panes = [
+#     "cd frontend && nvim .",
+#     "cd frontend && npm run dev"
+# ]
+#
+# [[windows]]
+# name = "backend"
+# layout = "main-horizontal"
+# panes = [
+#     "cd backend && nvim .",
+#     "cd backend && cargo run"
+# ]
+#
+# [[windows]]
+# name = "database"
+# panes = ["docker-compose up postgres redis"]
+
+# --- DevOps/Infrastructure Project ---
+# [[windows]]
+# name = "code"
+# panes = ["nvim ."]
+#
+# [[windows]]
+# name = "terraform"
+# panes = ["terraform plan"]
+#
+# [[windows]]
+# name = "k8s"
+# layout = "even-vertical"
+# panes = [
+#     "kubectl get pods -w",
+#     "stern -l app=myapp",  # Log streaming
+#     "k9s"                   # Kubernetes TUI
+# ]
+
+# --- Data Science/ML Project ---
+# [[windows]]
+# name = "jupyter"
+# panes = ["jupyter lab"]
+#
+# [[windows]]
+# name = "editor"
+# panes = ["nvim ."]
+#
+# [[windows]]
+# name = "training"
+# layout = "even-vertical"
+# panes = [
+#     "python train.py",
+#     "watch -n 1 nvidia-smi"  # GPU monitoring
+# ]
+
+# ============================================================================
+# AVAILABLE LAYOUTS
+# ============================================================================
+# Layout determines how panes are arranged in a window:
+#
+# main-horizontal:  Main pane on top, others stacked below horizontally
+#   ┌─────────────────────────────┐
+#   │         Main Pane           │
+#   ├──────────────┬──────────────┤
+#   │   Pane 2     │   Pane 3     │
+#   └──────────────┴──────────────┘
+#
+# main-vertical:    Main pane on left, others stacked right vertically
+#   ┌──────────┬──────────┐
+#   │          │ Pane 2   │
+#   │   Main   ├──────────┤
+#   │   Pane   │ Pane 3   │
+#   └──────────┴──────────┘
+#
+# tiled:            All panes in a grid
+#   ┌──────────┬──────────┐
+#   │ Pane 1   │ Pane 2   │
+#   ├──────────┼──────────┤
+#   │ Pane 3   │ Pane 4   │
+#   └──────────┴──────────┘
+#
+# even-horizontal:  All panes in a row, equal width
+#   ┌────┬────┬────┬────┐
+#   │ P1 │ P2 │ P3 │ P4 │
+#   └────┴────┴────┴────┘
+#
+# even-vertical:    All panes in a column, equal height
+#   ┌──────────────┐
+#   │   Pane 1     │
+#   ├──────────────┤
+#   │   Pane 2     │
+#   ├──────────────┤
+#   │   Pane 3     │
+#   └──────────────┘
+
+# ============================================================================
+# TIPS & TRICKS
+# ============================================================================
+# 1. Commands are executed with "Enter" automatically
+# 2. Use "clear" to just open a clean shell
+# 3. Commands run in the project directory by default
+# 4. Use "cd subdir && command" to run in subdirectories
+# 5. First pane in array is pane 0 (uses the window's initial pane)
+# 6. Subsequent panes are created by splitting
+# 7. Layout is applied after all panes are created
+# 8. Empty panes array = single pane window
+# 9. You can have as many windows as you want
+# 10. Compatible with tmux base-index 0 or 1 (auto-detected)
+
+# ============================================================================
+# COMMON PATTERNS
+# ============================================================================
+
+# Pattern: Editor + horizontal terminal split
+# [[windows]]
+# name = "work"
+# layout = "main-horizontal"
+# panes = ["nvim .", "clear"]
+
+# Pattern: Vertical split with commands side by side
+# [[windows]]
+# name = "dev"
+# layout = "even-vertical"
+# panes = ["npm run dev", "npm run test:watch"]
+
+# Pattern: Monitoring dashboard
+# [[windows]]
+# name = "monitor"
+# layout = "tiled"
+# panes = [
+#     "htop",
+#     "watch -n 1 df -h",
+#     "tail -f /var/log/syslog",
+#     "docker stats"
+# ]
+
+# Pattern: Simple workflow (no special layout needed)
+# [[windows]]
+# name = "code"
+# panes = []
+#
+# [[windows]]
+# name = "run"
+# panes = []
+#
+# [[windows]]
+# name = "git"
+# panes = []

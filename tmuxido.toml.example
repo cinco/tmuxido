@@ -1,0 +1,217 @@
+# ============================================================================
+# tmuxido - Global Configuration
+# ============================================================================
+# Location: ~/.config/tmuxido/tmuxido.toml
+#
+# This is the main configuration file that controls:
+# 1. Where to search for projects
+# 2. Caching behavior
+# 3. Default session layout (used when projects don't have .tmuxido.toml)
+#
+# Compatible with any tmux base-index setting (0 or 1, auto-detected)
+# ============================================================================
+
+# ============================================================================
+# PROJECT DISCOVERY
+# ============================================================================
+# Paths where tmuxido will search for git repositories
+# Supports ~ for home directory expansion
+
+paths = [
+    "~/Projects",
+    # "~/opensource",
+    # "~/clients/company-name",
+]
+
+# Maximum directory depth to search for .git folders
+# Higher values = slower scan, but finds deeply nested projects
+# Lower values = faster scan, but might miss some projects
+# Default: 5
+max_depth = 5
+
+# ============================================================================
+# CACHING CONFIGURATION
+# ============================================================================
+# Caching dramatically speeds up subsequent runs by storing discovered projects
+
+# Enable/disable project caching
+# Default: true
+cache_enabled = true
+
+# How long (in hours) before cache is considered stale and refreshed
+# Set lower if you frequently add new projects
+# Set higher if your projects are stable
+# Default: 24
+cache_ttl_hours = 24
+
+# Cache location: ~/.cache/tmuxido/projects.json
+# Use --refresh flag to force cache update
+# Use --cache-status to see cache information
+
+# ============================================================================
+# DEFAULT SESSION CONFIGURATION
+# ============================================================================
+# This configuration is used for projects that don't have their own
+# .tmuxido.toml file in the project root.
+#
+# You can customize this to match your preferred workflow!
+# ============================================================================
+
+[default_session]
+
+# --- OPTION 1: Simple two-window setup (CURRENT DEFAULT) ---
+[[default_session.windows]]
+name = "editor"
+panes = []
+
+[[default_session.windows]]
+name = "terminal"
+panes = []
+
+# --- OPTION 2: Single window with nvim and terminal split ---
+# Uncomment this and comment out Option 1 above
+# [[default_session.windows]]
+# name = "work"
+# layout = "main-horizontal"
+# panes = [
+#     "nvim .",      # Main pane: Editor
+#     "clear",       # Bottom left: Terminal
+#     "clear"        # Bottom right: Terminal
+# ]
+
+# --- OPTION 3: Three-window workflow (code, run, git) ---
+# Uncomment this and comment out Option 1 above
+# [[default_session.windows]]
+# name = "code"
+# layout = "main-vertical"
+# panes = ["nvim .", "clear"]
+#
+# [[default_session.windows]]
+# name = "run"
+# panes = []
+#
+# [[default_session.windows]]
+# name = "git"
+# panes = []
+
+# --- OPTION 4: Full development setup ---
+# Uncomment this and comment out Option 1 above
+# [[default_session.windows]]
+# name = "editor"
+# layout = "main-horizontal"
+# panes = ["nvim .", "clear", "clear"]
+#
+# [[default_session.windows]]
+# name = "server"
+# panes = []
+#
+# [[default_session.windows]]
+# name = "logs"
+# panes = []
+#
+# [[default_session.windows]]
+# name = "git"
+# panes = ["git status"]
+
+# ============================================================================
+# AVAILABLE LAYOUTS
+# ============================================================================
+# Use these layout values in your windows:
+#
+# main-horizontal:  Main pane on top, others below
+#   ┌─────────────────────────────┐
+#   │         Main Pane           │
+#   ├──────────────┬──────────────┤
+#   │   Pane 2     │   Pane 3     │
+#   └──────────────┴──────────────┘
+#
+# main-vertical:    Main pane on left, others on right
+#   ┌──────────┬──────────┐
+#   │          │ Pane 2   │
+#   │   Main   ├──────────┤
+#   │   Pane   │ Pane 3   │
+#   └──────────┴──────────┘
+#
+# tiled:            All panes in a grid
+#   ┌──────────┬──────────┐
+#   │ Pane 1   │ Pane 2   │
+#   ├──────────┼──────────┤
+#   │ Pane 3   │ Pane 4   │
+#   └──────────┴──────────┘
+#
+# even-horizontal:  All panes in equal-width columns
+#   ┌────┬────┬────┬────┐
+#   │ P1 │ P2 │ P3 │ P4 │
+#   └────┴────┴────┴────┘
+#
+# even-vertical:    All panes in equal-height rows
+#   ┌──────────────┐
+#   │   Pane 1     │
+#   ├──────────────┤
+#   │   Pane 2     │
+#   ├──────────────┤
+#   │   Pane 3     │
+#   └──────────────┘
+
+# ============================================================================
+# USAGE EXAMPLES
+# ============================================================================
+# Run without arguments (uses fzf to select project):
+#   $ tmuxido
+#
+# Open specific project directly:
+#   $ tmuxido /path/to/project
+#
+# Force refresh cache (after adding new projects):
+#   $ tmuxido --refresh
+#   $ tmuxido -r
+#
+# Check cache status:
+#   $ tmuxido --cache-status
+#
+# Show help:
+#   $ tmuxido --help
+
+# ============================================================================
+# PROJECT-SPECIFIC OVERRIDES
+# ============================================================================
+# To customize a specific project, create .tmuxido.toml in that
+# project's root directory. See .tmuxido.toml.example for details.
+#
+# Hierarchy:
+#   1. Project's .tmuxido.toml (highest priority)
+#   2. Global [default_session] from this file (fallback)
+
+# ============================================================================
+# TIPS & BEST PRACTICES
+# ============================================================================
+# 1. Start with the simple Option 1 default, customize as you learn
+# 2. Use project-specific configs for special projects (web apps, etc)
+# 3. Set cache_ttl_hours lower (6-12) if you frequently add projects
+# 4. Add multiple paths to organize personal vs work vs open-source
+# 5. Use max_depth wisely - higher isn't always better (slower scans)
+# 6. Run --cache-status to verify your settings are working
+# 7. The tool auto-detects your tmux base-index (0 or 1), no config needed
+# 8. Empty panes = shell in project directory (fastest to open)
+# 9. Commands in panes run automatically when session is created
+# 10. Use "clear" in panes for clean shells without running commands
+
+# ============================================================================
+# TROUBLESHOOTING
+# ============================================================================
+# Projects not showing up?
+#   - Check that paths exist and contain .git directories
+#   - Increase max_depth if projects are nested deeper
+#   - Run with --refresh to force cache update
+#
+# Cache seems stale?
+#   - Run tmuxido --refresh
+#   - Lower cache_ttl_hours value
+#
+# Windows/panes not created correctly?
+#   - Tool auto-detects base-index, but verify with: tmux show-options -g base-index
+#   - Check TOML syntax in default_session or project config
+#
+# Want to reset to defaults?
+#   - Delete this file, it will be recreated on next run
+#   - Or copy from: /path/to/repo/tmuxido.toml.example
