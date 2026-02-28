@@ -45,11 +45,13 @@ steps:
     commands:
       - apk add --no-cache curl jq
       - |
+        # Extract changelog entry for this tag (content between this and previous ## heading)
+        BODY=$(awk "/^## \[${DRONE_TAG}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
         RELEASE_ID=$(curl -fsSL -X POST \
           -H "Authorization: token $GITEA_TOKEN" \
           -H "Content-Type: application/json" \
           "https://git.cincoeuzebio.com/api/v1/repos/cinco/Tmuxido/releases" \
-          -d "{\"tag_name\":\"$DRONE_TAG\",\"name\":\"$DRONE_TAG\",\"body\":\"Release $DRONE_TAG\"}" \
+          -d "{\"tag_name\":\"$DRONE_TAG\",\"name\":\"$DRONE_TAG\",\"body\":$(echo "$BODY" | jq -Rs .)}" \
           | jq -r .id)
         for ASSET in tmuxido-x86_64-linux tmuxido-aarch64-linux; do
           curl -fsSL -X POST \
