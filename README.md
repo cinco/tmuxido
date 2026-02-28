@@ -40,6 +40,7 @@ Example configuration:
 # List of paths where to search for projects (git repositories)
 paths = [
     "~/Projects",
+    # "~/work",
 ]
 
 # Maximum depth to search for .git directories

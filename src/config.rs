@@ -102,7 +102,7 @@ impl Config {
             paths: vec![
                 dirs::home_dir()
                     .unwrap_or_default()
-                    .join("Work/Projects")
+                    .join("Projects")
                     .to_string_lossy()
                     .to_string(),
             ],
