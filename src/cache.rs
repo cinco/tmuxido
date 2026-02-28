@@ -23,14 +23,20 @@ fn now_secs() -> u64 {
 }
 
 fn mtime_secs(time: SystemTime) -> u64 {
-    time.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
+    time.duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
 }
 
 /// Retorna o subconjunto mínimo de diretórios: aqueles que não têm nenhum
 /// ancestral também na lista. Evita rescanear a mesma subárvore duas vezes.
-fn minimal_roots(dirs: &[PathBuf]) -> Vec<PathBuf> {
+pub(crate) fn minimal_roots(dirs: &[PathBuf]) -> Vec<PathBuf> {
     dirs.iter()
-        .filter(|dir| !dirs.iter().any(|other| other != *dir && dir.starts_with(other)))
+        .filter(|dir| {
+            !dirs
+                .iter()
+                .any(|other| other != *dir && dir.starts_with(other))
+        })
         .cloned()
         .collect()
 }
@@ -49,8 +55,9 @@ impl ProjectCache {
             .context("Could not determine cache directory")?
             .join("tmuxido");
 
-        fs::create_dir_all(&cache_dir)
-            .with_context(|| format!("Failed to create cache directory: {}", cache_dir.display()))?;
+        fs::create_dir_all(&cache_dir).with_context(|| {
+            format!("Failed to create cache directory: {}", cache_dir.display())
+        })?;
 
         Ok(cache_dir.join("projects.json"))
     }
@@ -74,8 +81,7 @@ impl ProjectCache {
     pub fn save(&self) -> Result<()> {
         let cache_path = Self::cache_path()?;
 
-        let content = serde_json::to_string_pretty(self)
-            .context("Failed to serialize cache")?;
+        let content = serde_json::to_string_pretty(self).context("Failed to serialize cache")?;
 
         fs::write(&cache_path, content)
             .with_context(|| format!("Failed to write cache file: {}", cache_path.display()))?;
@@ -91,6 +97,7 @@ impl ProjectCache {
     ///
     /// Retorna `true` se o cache foi modificado.
     /// Retorna `false` com `dir_mtimes` vazio (cache antigo) — chamador deve fazer rescan completo.
+    #[allow(clippy::type_complexity)]
     pub fn validate_and_update(
         &mut self,
         scan_fn: &dyn Fn(&Path) -> Result<(Vec<PathBuf>, HashMap<PathBuf, u64>)>,
@@ -152,5 +159,110 @@ impl ProjectCache {
 
     pub fn age_in_seconds(&self) -> u64 {
         now_secs().saturating_sub(self.last_updated)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::tempdir;
+
+    #[test]
+    fn should_return_empty_when_input_is_empty() {
+        let result = minimal_roots(&[]);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn should_return_single_dir_as_root() {
+        let dirs = vec![PathBuf::from("/home/user/projects")];
+        let result = minimal_roots(&dirs);
+        assert_eq!(result, dirs);
+    }
+
+    #[test]
+    fn should_exclude_nested_dirs_when_parent_is_present() {
+        let dirs = vec![
+            PathBuf::from("/home/user"),
+            PathBuf::from("/home/user/projects"),
+        ];
+        let result = minimal_roots(&dirs);
+        assert_eq!(result.len(), 1);
+        assert!(result.contains(&PathBuf::from("/home/user")));
+    }
+
+    #[test]
+    fn should_keep_sibling_dirs_that_are_not_nested() {
+        let dirs = vec![
+            PathBuf::from("/home/user/projects"),
+            PathBuf::from("/home/user/work"),
+        ];
+        let result = minimal_roots(&dirs);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn should_remove_stale_projects_when_git_dir_missing() {
+        let dir = tempdir().unwrap();
+        let project = dir.path().join("myproject");
+        fs::create_dir_all(project.join(".git")).unwrap();
+
+        let mut cache = ProjectCache::new(vec![project.clone()], HashMap::new());
+        assert_eq!(cache.projects.len(), 1);
+
+        fs::remove_dir_all(project.join(".git")).unwrap();
+
+        let result = cache.validate_and_update(&|_| Ok((vec![], HashMap::new())));
+        assert_eq!(result.unwrap(), true);
+        assert!(cache.projects.is_empty());
+    }
+
+    #[test]
+    fn should_return_false_when_nothing_changed() {
+        let dir = tempdir().unwrap();
+        let actual_mtime = fs::metadata(dir.path())
+            .unwrap()
+            .modified()
+            .unwrap()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let mut dir_mtimes = HashMap::new();
+        dir_mtimes.insert(dir.path().to_path_buf(), actual_mtime);
+        let mut cache = ProjectCache::new(vec![], dir_mtimes);
+
+        let result = cache.validate_and_update(&|_| Ok((vec![], HashMap::new())));
+        assert_eq!(result.unwrap(), false);
+    }
+
+    #[test]
+    fn should_rescan_dirs_when_mtime_changed() {
+        let dir = tempdir().unwrap();
+        let tracked = dir.path().to_path_buf();
+
+        // Store mtime 0 — guaranteed to differ from the actual mtime
+        let mut dir_mtimes = HashMap::new();
+        dir_mtimes.insert(tracked, 0u64);
+        let mut cache = ProjectCache::new(vec![], dir_mtimes);
+
+        let new_project = dir.path().join("discovered");
+        let scan_called = std::cell::Cell::new(false);
+        let result = cache.validate_and_update(&|_root| {
+            scan_called.set(true);
+            Ok((vec![new_project.clone()], HashMap::new()))
+        });
+
+        assert_eq!(result.unwrap(), true);
+        assert!(scan_called.get());
+        assert!(cache.projects.contains(&new_project));
+    }
+
+    #[test]
+    fn should_return_false_when_dir_mtimes_empty() {
+        let mut cache = ProjectCache::new(vec![], HashMap::new());
+        let result = cache.validate_and_update(&|_| Ok((vec![], HashMap::new())));
+        assert_eq!(result.unwrap(), false);
     }
 }

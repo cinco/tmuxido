@@ -78,18 +78,24 @@ impl Config {
         let config_path = Self::config_path()?;
 
         if !config_path.exists() {
-            let config_dir = config_path.parent()
+            let config_dir = config_path
+                .parent()
                 .context("Could not get parent directory")?;
 
-            fs::create_dir_all(config_dir)
-                .with_context(|| format!("Failed to create config directory: {}", config_dir.display()))?;
+            fs::create_dir_all(config_dir).with_context(|| {
+                format!(
+                    "Failed to create config directory: {}",
+                    config_dir.display()
+                )
+            })?;
 
             let default_config = Self::default_config();
             let toml_string = toml::to_string_pretty(&default_config)
                 .context("Failed to serialize default config")?;
 
-            fs::write(&config_path, toml_string)
-                .with_context(|| format!("Failed to write config file: {}", config_path.display()))?;
+            fs::write(&config_path, toml_string).with_context(|| {
+                format!("Failed to write config file: {}", config_path.display())
+            })?;
 
             eprintln!("Created default config at: {}", config_path.display());
         }
@@ -112,5 +118,39 @@ impl Config {
             default_session: default_session_config(),
         }
     }
+}
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn should_use_defaults_when_optional_fields_missing() {
+        let toml_str = r#"paths = ["/home/user/projects"]"#;
+        let config: Config = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.max_depth, 5);
+        assert!(config.cache_enabled);
+        assert_eq!(config.cache_ttl_hours, 24);
+    }
+
+    #[test]
+    fn should_parse_full_config_correctly() {
+        let toml_str = r#"
+            paths = ["/foo", "/bar"]
+            max_depth = 3
+            cache_enabled = false
+            cache_ttl_hours = 12
+        "#;
+        let config: Config = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.paths, vec!["/foo", "/bar"]);
+        assert_eq!(config.max_depth, 3);
+        assert!(!config.cache_enabled);
+        assert_eq!(config.cache_ttl_hours, 12);
+    }
+
+    #[test]
+    fn should_reject_invalid_toml() {
+        let result: Result<Config, _> = toml::from_str("not valid toml ]][[");
+        assert!(result.is_err());
+    }
 }

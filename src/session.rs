@@ -30,15 +30,16 @@ impl SessionConfig {
         let content = fs::read_to_string(&config_path)
             .with_context(|| format!("Failed to read session config: {}", config_path.display()))?;
 
-        let config: SessionConfig = toml::from_str(&content)
-            .with_context(|| format!("Failed to parse session config: {}", config_path.display()))?;
+        let config: SessionConfig = toml::from_str(&content).with_context(|| {
+            format!("Failed to parse session config: {}", config_path.display())
+        })?;
 
         Ok(Some(config))
     }
 }
 
 pub struct TmuxSession {
-    session_name: String,
+    pub(crate) session_name: String,
     project_path: String,
     base_index: usize,
 }
@@ -67,12 +68,12 @@ impl TmuxSession {
             .args(["show-options", "-gv", "base-index"])
             .output();
 
-        if let Ok(output) = output {
-            if output.status.success() {
-                let index_str = String::from_utf8_lossy(&output.stdout);
-                if let Ok(index) = index_str.trim().parse::<usize>() {
-                    return index;
-                }
+        if let Ok(output) = output
+            && output.status.success()
+        {
+            let index_str = String::from_utf8_lossy(&output.stdout);
+            if let Ok(index) = index_str.trim().parse::<usize>() {
+                return index;
             }
         }
 
@@ -206,7 +207,11 @@ impl TmuxSession {
 
         // Select the first window
         Command::new("tmux")
-            .args(["select-window", "-t", &format!("{}:{}", self.session_name, self.base_index)])
+            .args([
+                "select-window",
+                "-t",
+                &format!("{}:{}", self.session_name, self.base_index),
+            ])
             .status()
             .context("Failed to select first window")?;
 
@@ -221,13 +226,7 @@ impl TmuxSession {
             if pane_index > 0 {
                 // Create new pane by splitting
                 Command::new("tmux")
-                    .args([
-                        "split-window",
-                        "-t",
-                        &target,
-                        "-c",
-                        &self.project_path,
-                    ])
+                    .args(["split-window", "-t", &target, "-c", &self.project_path])
                     .status()
                     .context("Failed to split pane")?;
             }
@@ -236,13 +235,7 @@ impl TmuxSession {
             if !command.is_empty() {
                 let pane_target = format!("{}:{}.{}", self.session_name, window_index, pane_index);
                 Command::new("tmux")
-                    .args([
-                        "send-keys",
-                        "-t",
-                        &pane_target,
-                        command,
-                        "Enter",
-                    ])
+                    .args(["send-keys", "-t", &pane_target, command, "Enter"])
                     .status()
                     .context("Failed to send keys to pane")?;
             }
@@ -263,5 +256,54 @@ impl TmuxSession {
             .with_context(|| format!("Failed to apply layout: {}", layout))?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn should_replace_dots_with_underscores_in_session_name() {
+        let session = TmuxSession::new(Path::new("/home/user/my.project"));
+        assert_eq!(session.session_name, "my_project");
+    }
+
+    #[test]
+    fn should_replace_spaces_with_dashes_in_session_name() {
+        let session = TmuxSession::new(Path::new("/home/user/my project"));
+        assert_eq!(session.session_name, "my-project");
+    }
+
+    #[test]
+    fn should_use_project_fallback_when_path_has_no_filename() {
+        let session = TmuxSession::new(Path::new("/"));
+        assert_eq!(session.session_name, "project");
+    }
+
+    #[test]
+    fn should_parse_window_from_toml() {
+        let toml_str = r#"
+            [[windows]]
+            name = "editor"
+            panes = ["nvim ."]
+        "#;
+        let config: SessionConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.windows[0].name, "editor");
+        assert_eq!(config.windows[0].panes, vec!["nvim ."]);
+    }
+
+    #[test]
+    fn should_parse_session_config_with_layout() {
+        let toml_str = r#"
+            [[windows]]
+            name = "main"
+            layout = "tiled"
+            panes = ["vim", "bash"]
+        "#;
+        let config: SessionConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.windows[0].layout, Some("tiled".to_string()));
+        assert_eq!(config.windows[0].panes.len(), 2);
     }
 }
