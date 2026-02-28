@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "rust-mcp": {
+      "type": "stdio",
+      "command": "rust-mcp-server",
+      "args": []
+    },
+    "crates": {
+      "type": "stdio",
+      "command": "crates-mcp",
+      "args": []
+    }
+  }
+}
