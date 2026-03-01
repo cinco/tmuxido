@@ -6,9 +6,6 @@ trigger:
   event:
     - push
     - pull_request
-  branch:
-    exclude:
-      - badges
 
 steps:
   - name: test
@@ -25,7 +22,7 @@ steps:
       GITEA_TOKEN:
         from_secret: gitea_token
     commands:
-      - apt-get update -qq && apt-get install -y -qq jq git curl
+      - apt-get update -qq && apt-get install -y -qq jq curl
       - cargo tarpaulin --out Json 2>/dev/null
       - |
         PCT=$(jq '.coverage | floor' tarpaulin-report.json)
@@ -34,24 +31,13 @@ steps:
         else COLOR="red"; fi
         curl -sf "https://img.shields.io/badge/coverage-${PCT}%25-${COLOR}.svg" -o coverage.svg
       - |
-        git config --global user.email "ci@drone"
-        git config --global user.name "Drone CI"
-        REPO="https://cinco:${GITEA_TOKEN}@git.cincoeuzebio.com/cinco/Tmuxido.git"
-        if git clone --branch badges --single-branch "$REPO" _badges 2>/dev/null; then
-          cp coverage.svg _badges/
-          cd _badges
-          git add coverage.svg
-          git diff --cached --quiet || git commit -m "ci: update coverage badge [CI SKIP]"
-          git push
-        else
-          mkdir _badges && cp coverage.svg _badges/
-          cd _badges && git init
-          git remote add origin "$REPO"
-          git checkout --orphan badges
-          git add coverage.svg
-          git commit -m "ci: add coverage badge"
-          git push origin badges
-        fi
+        curl -sf -X DELETE \
+          -H "Authorization: token $GITEA_TOKEN" \
+          "https://git.cincoeuzebio.com/api/packages/cinco/generic/badges/latest" || true
+        curl -fsSL -X PUT \
+          -H "Authorization: token $GITEA_TOKEN" \
+          -T coverage.svg \
+          "https://git.cincoeuzebio.com/api/packages/cinco/generic/badges/latest/coverage.svg"
 
 ---
 kind: pipeline
