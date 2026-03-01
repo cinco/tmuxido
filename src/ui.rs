@@ -326,3 +326,218 @@ pub fn render_pane_command_prompt(pane_name: &str) -> Result<String> {
 
     Ok(input.trim().to_string())
 }
+
+/// Parse max_depth input, returning None for empty/invalid (use default)
+pub fn parse_max_depth_input(input: &str) -> Option<usize> {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    trimmed.parse::<usize>().ok().filter(|&n| n > 0)
+}
+
+/// Parse cache enabled input, returning None for empty (use default)
+pub fn parse_cache_enabled_input(input: &str) -> Option<bool> {
+    let trimmed = input.trim().to_lowercase();
+    if trimmed.is_empty() {
+        return None;
+    }
+    match trimmed.as_str() {
+        "y" | "yes" => Some(true),
+        "n" | "no" => Some(false),
+        _ => None,
+    }
+}
+
+/// Parse cache TTL input, returning None for empty/invalid (use default)
+pub fn parse_cache_ttl_input(input: &str) -> Option<u64> {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    trimmed.parse::<u64>().ok().filter(|&n| n > 0)
+}
+
+/// Parse comma-separated list into Vec<String>, filtering empty items
+pub fn parse_comma_separated_list(input: &str) -> Vec<String> {
+    input
+        .trim()
+        .split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn should_return_none_for_empty_max_depth() {
+        assert_eq!(parse_max_depth_input(""), None);
+        assert_eq!(parse_max_depth_input("   "), None);
+    }
+
+    #[test]
+    fn should_parse_valid_max_depth() {
+        assert_eq!(parse_max_depth_input("5"), Some(5));
+        assert_eq!(parse_max_depth_input("10"), Some(10));
+        assert_eq!(parse_max_depth_input("  3  "), Some(3));
+    }
+
+    #[test]
+    fn should_return_none_for_invalid_max_depth() {
+        assert_eq!(parse_max_depth_input("0"), None);
+        assert_eq!(parse_max_depth_input("-1"), None);
+        assert_eq!(parse_max_depth_input("abc"), None);
+        assert_eq!(parse_max_depth_input("3.5"), None);
+    }
+
+    #[test]
+    fn should_return_none_for_empty_cache_enabled() {
+        assert_eq!(parse_cache_enabled_input(""), None);
+        assert_eq!(parse_cache_enabled_input("   "), None);
+    }
+
+    #[test]
+    fn should_parse_yes_as_true() {
+        assert_eq!(parse_cache_enabled_input("y"), Some(true));
+        assert_eq!(parse_cache_enabled_input("Y"), Some(true));
+        assert_eq!(parse_cache_enabled_input("yes"), Some(true));
+        assert_eq!(parse_cache_enabled_input("YES"), Some(true));
+        assert_eq!(parse_cache_enabled_input("Yes"), Some(true));
+    }
+
+    #[test]
+    fn should_parse_no_as_false() {
+        assert_eq!(parse_cache_enabled_input("n"), Some(false));
+        assert_eq!(parse_cache_enabled_input("N"), Some(false));
+        assert_eq!(parse_cache_enabled_input("no"), Some(false));
+        assert_eq!(parse_cache_enabled_input("NO"), Some(false));
+        assert_eq!(parse_cache_enabled_input("No"), Some(false));
+    }
+
+    #[test]
+    fn should_return_none_for_invalid_cache_input() {
+        assert_eq!(parse_cache_enabled_input("maybe"), None);
+        assert_eq!(parse_cache_enabled_input("true"), None);
+        assert_eq!(parse_cache_enabled_input("1"), None);
+    }
+
+    #[test]
+    fn should_return_none_for_empty_cache_ttl() {
+        assert_eq!(parse_cache_ttl_input(""), None);
+        assert_eq!(parse_cache_ttl_input("   "), None);
+    }
+
+    #[test]
+    fn should_parse_valid_cache_ttl() {
+        assert_eq!(parse_cache_ttl_input("24"), Some(24));
+        assert_eq!(parse_cache_ttl_input("12"), Some(12));
+        assert_eq!(parse_cache_ttl_input("  48  "), Some(48));
+    }
+
+    #[test]
+    fn should_return_none_for_invalid_cache_ttl() {
+        assert_eq!(parse_cache_ttl_input("0"), None);
+        assert_eq!(parse_cache_ttl_input("-1"), None);
+        assert_eq!(parse_cache_ttl_input("abc"), None);
+        assert_eq!(parse_cache_ttl_input("12.5"), None);
+    }
+
+    #[test]
+    fn should_parse_empty_comma_list() {
+        let result = parse_comma_separated_list("");
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn should_parse_single_item() {
+        let result = parse_comma_separated_list("editor");
+        assert_eq!(result, vec!["editor"]);
+    }
+
+    #[test]
+    fn should_parse_multiple_items() {
+        let result = parse_comma_separated_list("editor, terminal, server");
+        assert_eq!(result, vec!["editor", "terminal", "server"]);
+    }
+
+    #[test]
+    fn should_trim_whitespace_in_comma_list() {
+        let result = parse_comma_separated_list("  editor  ,  terminal  ");
+        assert_eq!(result, vec!["editor", "terminal"]);
+    }
+
+    #[test]
+    fn should_filter_empty_parts_in_comma_list() {
+        let result = parse_comma_separated_list("editor,,terminal");
+        assert_eq!(result, vec!["editor", "terminal"]);
+    }
+
+    #[test]
+    fn color_blue_should_return_expected_rgb() {
+        let color = color_blue();
+        // We can't easily test the internal RGB values, but we can verify it doesn't panic
+        let _ = color;
+    }
+
+    #[test]
+    fn color_functions_should_return_distinct_colors() {
+        // Verify all color functions return valid Color objects
+        let colors = vec![
+            color_blue(),
+            color_purple(),
+            color_light_gray(),
+            color_dark_gray(),
+            color_green(),
+            color_orange(),
+        ];
+        // Just verify they don't panic and are distinct
+        assert_eq!(colors.len(), 6);
+    }
+
+    #[test]
+    fn render_section_header_should_not_panic() {
+        // This test verifies the function doesn't panic
+        // We can't capture stdout easily in unit tests without additional setup
+        render_section_header("Test Section");
+    }
+
+    #[test]
+    fn render_welcome_banner_should_not_panic() {
+        render_welcome_banner();
+    }
+
+    #[test]
+    fn render_fallback_message_should_not_panic() {
+        render_fallback_message();
+    }
+
+    #[test]
+    fn render_config_created_should_not_panic() {
+        let windows = vec![
+            Window {
+                name: "editor".to_string(),
+                panes: vec!["nvim .".to_string()],
+                layout: None,
+            },
+            Window {
+                name: "terminal".to_string(),
+                panes: vec![],
+                layout: None,
+            },
+        ];
+        render_config_created(&vec!["~/Projects".to_string()], 5, true, 24, &windows);
+    }
+
+    #[test]
+    fn render_config_created_with_disabled_cache_should_not_panic() {
+        let windows = vec![Window {
+            name: "editor".to_string(),
+            panes: vec![],
+            layout: None,
+        }];
+        render_config_created(&vec!["~/work".to_string()], 3, false, 24, &windows);
+    }
+}

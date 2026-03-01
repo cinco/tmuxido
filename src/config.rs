@@ -148,59 +148,25 @@ impl Config {
     fn prompt_for_max_depth() -> Result<usize> {
         ui::render_section_header("Scan Settings");
         let input = ui::render_max_depth_prompt()?;
-
-        if input.is_empty() {
-            return Ok(5);
-        }
-
-        match input.parse::<usize>() {
-            Ok(n) if n > 0 => Ok(n),
-            _ => {
-                eprintln!("Invalid value, using default: 5");
-                Ok(5)
-            }
-        }
+        Ok(ui::parse_max_depth_input(&input).unwrap_or(5))
     }
 
     fn prompt_for_cache_enabled() -> Result<bool> {
         ui::render_section_header("Cache Settings");
         let input = ui::render_cache_enabled_prompt()?;
-
-        if input.is_empty() || input == "y" || input == "yes" {
-            Ok(true)
-        } else if input == "n" || input == "no" {
-            Ok(false)
-        } else {
-            eprintln!("Invalid value, using default: yes");
-            Ok(true)
-        }
+        Ok(ui::parse_cache_enabled_input(&input).unwrap_or(true))
     }
 
     fn prompt_for_cache_ttl() -> Result<u64> {
         let input = ui::render_cache_ttl_prompt()?;
-
-        if input.is_empty() {
-            return Ok(24);
-        }
-
-        match input.parse::<u64>() {
-            Ok(n) if n > 0 => Ok(n),
-            _ => {
-                eprintln!("Invalid value, using default: 24");
-                Ok(24)
-            }
-        }
+        Ok(ui::parse_cache_ttl_input(&input).unwrap_or(24))
     }
 
     fn prompt_for_windows() -> Result<Vec<crate::session::Window>> {
         ui::render_section_header("Default Session");
         let input = ui::render_windows_prompt()?;
 
-        let window_names: Vec<String> = input
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
+        let window_names = ui::parse_comma_separated_list(&input);
 
         let names = if window_names.is_empty() {
             vec!["editor".to_string(), "terminal".to_string()]
@@ -225,11 +191,7 @@ impl Config {
     fn prompt_for_panes(window_name: &str) -> Result<Vec<String>> {
         let input = ui::render_panes_prompt(window_name)?;
 
-        let pane_names: Vec<String> = input
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
+        let pane_names = ui::parse_comma_separated_list(&input);
 
         if pane_names.is_empty() {
             // Single pane, no commands
@@ -346,5 +308,65 @@ mod tests {
         let input = "~/Projects,,~/work";
         let paths = Config::parse_paths_input(input);
         assert_eq!(paths, vec!["~/Projects", "~/work"]);
+    }
+
+    #[test]
+    fn should_use_ui_parse_functions_for_max_depth() {
+        // Test that our UI parsing produces expected results
+        assert_eq!(ui::parse_max_depth_input(""), None);
+        assert_eq!(ui::parse_max_depth_input("5"), Some(5));
+        assert_eq!(ui::parse_max_depth_input("invalid"), None);
+    }
+
+    #[test]
+    fn should_use_ui_parse_functions_for_cache_enabled() {
+        assert_eq!(ui::parse_cache_enabled_input(""), None);
+        assert_eq!(ui::parse_cache_enabled_input("y"), Some(true));
+        assert_eq!(ui::parse_cache_enabled_input("n"), Some(false));
+        assert_eq!(ui::parse_cache_enabled_input("maybe"), None);
+    }
+
+    #[test]
+    fn should_use_ui_parse_functions_for_cache_ttl() {
+        assert_eq!(ui::parse_cache_ttl_input(""), None);
+        assert_eq!(ui::parse_cache_ttl_input("24"), Some(24));
+        assert_eq!(ui::parse_cache_ttl_input("invalid"), None);
+    }
+
+    #[test]
+    fn should_use_ui_parse_functions_for_window_names() {
+        let result = ui::parse_comma_separated_list("editor, terminal, server");
+        assert_eq!(result, vec!["editor", "terminal", "server"]);
+    }
+
+    #[test]
+    fn should_parse_config_with_windows_and_panes() {
+        let toml_str = r#"
+            paths = ["/projects"]
+            max_depth = 3
+            cache_enabled = true
+            cache_ttl_hours = 12
+
+            [default_session]
+            [[default_session.windows]]
+            name = "editor"
+            panes = ["nvim .", "git status"]
+
+            [[default_session.windows]]
+            name = "terminal"
+            panes = []
+        "#;
+        let config: Config = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.paths, vec!["/projects"]);
+        assert_eq!(config.max_depth, 3);
+        assert!(config.cache_enabled);
+        assert_eq!(config.cache_ttl_hours, 12);
+        assert_eq!(config.default_session.windows.len(), 2);
+        assert_eq!(config.default_session.windows[0].name, "editor");
+        assert_eq!(config.default_session.windows[0].panes.len(), 2);
+        assert_eq!(config.default_session.windows[0].panes[0], "nvim .");
+        assert_eq!(config.default_session.windows[0].panes[1], "git status");
+        assert_eq!(config.default_session.windows[1].name, "terminal");
+        assert!(config.default_session.windows[1].panes.is_empty());
     }
 }
