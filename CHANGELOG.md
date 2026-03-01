@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.5.1] - 2026-03-01
+
+### Fixed
+- Tmux window creation now targets windows by name instead of numeric index, eliminating
+  "index in use" and "can't find window" errors when `base-index` is not 0
+- Self-update asset name corrected from `x86_64-linux` to `tmuxido-x86_64-linux` to match
+  what CI actually uploads, fixing 404 on `--update`
+- CI release pipeline now deletes any existing release for the tag before recreating,
+  preventing 409 Conflict errors on retagged releases
+
 ## [0.5.0] - 2026-03-01
 
 ### Added
