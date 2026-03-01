@@ -4,6 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::session::SessionConfig;
+use crate::ui;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
@@ -89,18 +90,60 @@ impl Config {
                 )
             })?;
 
-            let default_config = Self::default_config();
-            let toml_string = toml::to_string_pretty(&default_config)
-                .context("Failed to serialize default config")?;
+            // Prompt user for paths interactively
+            let paths = Self::prompt_for_paths()?;
+
+            let config = Config {
+                paths: paths.clone(),
+                max_depth: 5,
+                cache_enabled: true,
+                cache_ttl_hours: 24,
+                default_session: default_session_config(),
+            };
+
+            let toml_string =
+                toml::to_string_pretty(&config).context("Failed to serialize config")?;
 
             fs::write(&config_path, toml_string).with_context(|| {
                 format!("Failed to write config file: {}", config_path.display())
             })?;
 
-            eprintln!("Created default config at: {}", config_path.display());
+            // Render styled success message
+            ui::render_config_created(&paths);
         }
 
         Ok(config_path)
+    }
+
+    fn prompt_for_paths() -> Result<Vec<String>> {
+        // Render styled welcome banner
+        ui::render_welcome_banner();
+
+        // Get input with styled prompt
+        let input = ui::render_paths_prompt()?;
+        let paths = Self::parse_paths_input(&input);
+
+        if paths.is_empty() {
+            ui::render_fallback_message();
+            Ok(vec![
+                dirs::home_dir()
+                    .unwrap_or_default()
+                    .join("Projects")
+                    .to_string_lossy()
+                    .to_string(),
+            ])
+        } else {
+            Ok(paths)
+        }
+    }
+
+    fn parse_paths_input(input: &str) -> Vec<String> {
+        input
+            .trim()
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect()
     }
 
     fn default_config() -> Self {
@@ -152,5 +195,47 @@ mod tests {
     fn should_reject_invalid_toml() {
         let result: Result<Config, _> = toml::from_str("not valid toml ]][[");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn should_parse_single_path() {
+        let input = "~/Projects";
+        let paths = Config::parse_paths_input(input);
+        assert_eq!(paths, vec!["~/Projects"]);
+    }
+
+    #[test]
+    fn should_parse_multiple_paths_with_commas() {
+        let input = "~/Projects, ~/work, ~/repos";
+        let paths = Config::parse_paths_input(input);
+        assert_eq!(paths, vec!["~/Projects", "~/work", "~/repos"]);
+    }
+
+    #[test]
+    fn should_trim_whitespace_from_paths() {
+        let input = "  ~/Projects  ,  ~/work  ";
+        let paths = Config::parse_paths_input(input);
+        assert_eq!(paths, vec!["~/Projects", "~/work"]);
+    }
+
+    #[test]
+    fn should_return_empty_vec_for_empty_input() {
+        let input = "";
+        let paths = Config::parse_paths_input(input);
+        assert!(paths.is_empty());
+    }
+
+    #[test]
+    fn should_return_empty_vec_for_whitespace_only() {
+        let input = "   ";
+        let paths = Config::parse_paths_input(input);
+        assert!(paths.is_empty());
+    }
+
+    #[test]
+    fn should_handle_empty_parts_between_commas() {
+        let input = "~/Projects,,~/work";
+        let paths = Config::parse_paths_input(input);
+        assert_eq!(paths, vec!["~/Projects", "~/work"]);
     }
 }

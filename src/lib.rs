@@ -3,6 +3,7 @@ pub mod config;
 pub mod deps;
 pub mod self_update;
 pub mod session;
+pub mod ui;
 
 use anyhow::Result;
 use cache::ProjectCache;
