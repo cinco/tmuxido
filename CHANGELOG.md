@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.7.1] - 2026-03-01
+
+### Fixed
+- Interactive setup wizard now asks for a tmux layout when a window has 2 or more panes
+- Layout selection shown in post-wizard summary
+
+### Changed
+- README: Added ASCII art previews for each available tmux layout
+
 ## [0.7.0] - 2026-03-01
 
 ### Changed
