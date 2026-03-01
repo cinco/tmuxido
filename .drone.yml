@@ -118,33 +118,35 @@ steps:
       GITHUB_REPO: cinco/tmuxido
     commands:
       - apk add --no-cache curl jq
-      - TAG=${DRONE_TAG}
-      - |
-        NOTES=$(awk "/^## \[$TAG\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
       - |
         EXISTING=$(curl -fsSL \
           -H "Authorization: token $GITHUB_TOKEN" \
           -H "Accept: application/vnd.github.v3+json" \
-          "https://api.github.com/repos/$GITHUB_REPO/releases/tags/$TAG" | jq -r '.id // empty')
+          "https://api.github.com/repos/$GITHUB_REPO/releases/tags/$DRONE_TAG" | jq -r '.id // empty')
         if [ -n "$EXISTING" ]; then
-          curl -s -X DELETE -H "Authorization: token $GITHUB_TOKEN" \
+          curl -s -X DELETE \
+            -H "Authorization: token $GITHUB_TOKEN" \
             "https://api.github.com/repos/$GITHUB_REPO/releases/$EXISTING"
         fi
-      - |
+        BODY=$(awk '
+          BEGIN { tag = ENVIRON["DRONE_TAG"] }
+          /^## \[/ { in_section = (index($0, "[" tag "]") > 0); next }
+          in_section && /^## \[/ { exit }
+          in_section { print }
+        ' CHANGELOG.md)
         RELEASE_ID=$(curl -fsSL -X POST \
           -H "Authorization: token $GITHUB_TOKEN" \
           -H "Accept: application/vnd.github.v3+json" \
           -H "Content-Type: application/json" \
           "https://api.github.com/repos/$GITHUB_REPO/releases" \
-          -d "{\"tag_name\":\"$TAG\",\"name\":\"$TAG\",\"body\":$(echo "$NOTES" | jq -Rs .)}" \
+          -d "{\"tag_name\":\"$DRONE_TAG\",\"name\":\"$DRONE_TAG\",\"body\":$(echo "$BODY" | jq -Rs .)}" \
           | jq -r '.id')
-      - |
-        for ARCH in x86_64 aarch64; do
+        for FILE in tmuxido-x86_64-linux tmuxido-aarch64-linux; do
           curl -fsSL -X POST \
             -H "Authorization: token $GITHUB_TOKEN" \
             -H "Content-Type: application/octet-stream" \
-            "https://uploads.github.com/repos/$GITHUB_REPO/releases/$RELEASE_ID/assets?name=tmuxido-${ARCH}-linux" \
-            --data-binary @"tmuxido-${ARCH}-linux"
+            "https://uploads.github.com/repos/$GITHUB_REPO/releases/$RELEASE_ID/assets?name=$FILE" \
+            --data-binary @"$FILE"
         done
     depends_on:
       - build-x86_64
