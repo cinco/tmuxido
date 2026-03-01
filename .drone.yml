@@ -76,6 +76,16 @@ steps:
     commands:
       - apk add --no-cache curl jq
       - |
+        # Delete existing release for this tag if present (handles retag scenarios)
+        EXISTING_ID=$(curl -fsSL \
+          -H "Authorization: token $GITEA_TOKEN" \
+          "https://git.cincoeuzebio.com/api/v1/repos/cinco/Tmuxido/releases/tags/$DRONE_TAG" \
+          | jq -r '.id // empty')
+        if [ -n "$EXISTING_ID" ]; then
+          curl -fsSL -X DELETE \
+            -H "Authorization: token $GITEA_TOKEN" \
+            "https://git.cincoeuzebio.com/api/v1/repos/cinco/Tmuxido/releases/$EXISTING_ID"
+        fi
         # Read DRONE_TAG via ENVIRON inside awk to avoid Drone's ${VAR} substitution
         # which would replace ${TAG} with an empty string before the shell runs.
         BODY=$(awk '
