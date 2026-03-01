@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.6.0] - 2026-03-01
+
+### Added
+- Periodic update check: on startup, if `update_check_interval_hours` have elapsed since
+  the last check, tmuxido fetches the latest release tag from the Gitea API and prints a
+  notice when a newer version is available (silent on network failure or no update found)
+- New `update_check` module (`src/update_check.rs`) with injected fetcher for testability
+- `update_check_interval_hours` config field (default 24, set to 0 to disable)
+- Cache file `~/.cache/tmuxido/update_check.json` tracks last-checked timestamp and
+  latest known version across runs
+
 ## [0.5.2] - 2026-03-01
 
 ### Added
