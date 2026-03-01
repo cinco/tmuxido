@@ -15,6 +15,8 @@ pub struct Config {
     pub cache_enabled: bool,
     #[serde(default = "default_cache_ttl_hours")]
     pub cache_ttl_hours: u64,
+    #[serde(default = "default_update_check_interval_hours")]
+    pub update_check_interval_hours: u64,
     #[serde(default = "default_session_config")]
     pub default_session: SessionConfig,
 }
@@ -28,6 +30,10 @@ fn default_cache_enabled() -> bool {
 }
 
 fn default_cache_ttl_hours() -> u64 {
+    24
+}
+
+fn default_update_check_interval_hours() -> u64 {
     24
 }
 
@@ -109,6 +115,7 @@ impl Config {
                 max_depth,
                 cache_enabled,
                 cache_ttl_hours,
+                update_check_interval_hours: default_update_check_interval_hours(),
                 default_session: SessionConfig { windows },
             };
 
@@ -229,6 +236,7 @@ impl Config {
             max_depth: 5,
             cache_enabled: true,
             cache_ttl_hours: 24,
+            update_check_interval_hours: default_update_check_interval_hours(),
             default_session: default_session_config(),
         }
     }
@@ -245,6 +253,7 @@ mod tests {
         assert_eq!(config.max_depth, 5);
         assert!(config.cache_enabled);
         assert_eq!(config.cache_ttl_hours, 24);
+        assert_eq!(config.update_check_interval_hours, 24);
     }
 
     #[test]

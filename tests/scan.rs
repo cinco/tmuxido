@@ -10,6 +10,7 @@ fn make_config(max_depth: usize) -> Config {
         max_depth,
         cache_enabled: true,
         cache_ttl_hours: 24,
+        update_check_interval_hours: 24,
         default_session: SessionConfig { windows: vec![] },
     }
 }
