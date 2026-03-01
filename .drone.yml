@@ -53,7 +53,7 @@ trigger:
   event:
     - tag
   ref:
-    - refs/tags/[0-9]*
+    - refs/tags/v*
 
 steps:
   - name: build-x86_64
@@ -76,8 +76,9 @@ steps:
     commands:
       - apk add --no-cache curl jq
       - |
-        # Extract changelog entry for this tag (content between this and previous ## heading)
-        BODY=$(awk "/^## \[${DRONE_TAG}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
+        # Extract changelog entry for this tag (strip leading 'v' to match CHANGELOG format)
+        TAG="${DRONE_TAG#v}"
+        BODY=$(awk "/^## \[${TAG}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
         RELEASE_ID=$(curl -fsSL -X POST \
           -H "Authorization: token $GITEA_TOKEN" \
           -H "Content-Type: application/json" \

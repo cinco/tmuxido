@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.3.0] - 2026-03-01
+
+### Added
+- Verificação de dependências (`fzf` e `tmux`) ao iniciar, antes de qualquer operação
+- Detecção automática do gerenciador de pacotes da distro (apt, pacman, dnf, yum, zypper, emerge, xbps, apk)
+- Oferta interativa de instalação caso as ferramentas estejam ausentes
+- Módulo `deps` com trait `BinaryChecker` injetável para testes unitários sem tocar no sistema real
+- Testes de integração em `tests/deps.rs` (11 testes com `SystemBinaryChecker` real)
+- Suite de testes em container Docker Ubuntu 24.04 (`tests/docker/`) com 15 cenários simulando novo usuário
+
 ## [0.2.4] - 2026-03-01
 
 ### Fixed
