@@ -90,15 +90,26 @@ impl Config {
                 )
             })?;
 
-            // Prompt user for paths interactively
+            // Run interactive configuration wizard
             let paths = Self::prompt_for_paths()?;
+            let max_depth = Self::prompt_for_max_depth()?;
+            let cache_enabled = Self::prompt_for_cache_enabled()?;
+            let cache_ttl_hours = if cache_enabled {
+                Self::prompt_for_cache_ttl()?
+            } else {
+                24
+            };
+            let windows = Self::prompt_for_windows()?;
+
+            // Render styled success message before moving windows
+            ui::render_config_created(&paths, max_depth, cache_enabled, cache_ttl_hours, &windows);
 
             let config = Config {
                 paths: paths.clone(),
-                max_depth: 5,
-                cache_enabled: true,
-                cache_ttl_hours: 24,
-                default_session: default_session_config(),
+                max_depth,
+                cache_enabled,
+                cache_ttl_hours,
+                default_session: SessionConfig { windows },
             };
 
             let toml_string =
@@ -107,9 +118,6 @@ impl Config {
             fs::write(&config_path, toml_string).with_context(|| {
                 format!("Failed to write config file: {}", config_path.display())
             })?;
-
-            // Render styled success message
-            ui::render_config_created(&paths);
         }
 
         Ok(config_path)
@@ -135,6 +143,107 @@ impl Config {
         } else {
             Ok(paths)
         }
+    }
+
+    fn prompt_for_max_depth() -> Result<usize> {
+        ui::render_section_header("Scan Settings");
+        let input = ui::render_max_depth_prompt()?;
+
+        if input.is_empty() {
+            return Ok(5);
+        }
+
+        match input.parse::<usize>() {
+            Ok(n) if n > 0 => Ok(n),
+            _ => {
+                eprintln!("Invalid value, using default: 5");
+                Ok(5)
+            }
+        }
+    }
+
+    fn prompt_for_cache_enabled() -> Result<bool> {
+        ui::render_section_header("Cache Settings");
+        let input = ui::render_cache_enabled_prompt()?;
+
+        if input.is_empty() || input == "y" || input == "yes" {
+            Ok(true)
+        } else if input == "n" || input == "no" {
+            Ok(false)
+        } else {
+            eprintln!("Invalid value, using default: yes");
+            Ok(true)
+        }
+    }
+
+    fn prompt_for_cache_ttl() -> Result<u64> {
+        let input = ui::render_cache_ttl_prompt()?;
+
+        if input.is_empty() {
+            return Ok(24);
+        }
+
+        match input.parse::<u64>() {
+            Ok(n) if n > 0 => Ok(n),
+            _ => {
+                eprintln!("Invalid value, using default: 24");
+                Ok(24)
+            }
+        }
+    }
+
+    fn prompt_for_windows() -> Result<Vec<crate::session::Window>> {
+        ui::render_section_header("Default Session");
+        let input = ui::render_windows_prompt()?;
+
+        let window_names: Vec<String> = input
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        let names = if window_names.is_empty() {
+            vec!["editor".to_string(), "terminal".to_string()]
+        } else {
+            window_names
+        };
+
+        // Configure panes for each window
+        let mut windows = Vec::new();
+        for name in names {
+            let panes = Self::prompt_for_panes(&name)?;
+            windows.push(crate::session::Window {
+                name,
+                panes,
+                layout: None,
+            });
+        }
+
+        Ok(windows)
+    }
+
+    fn prompt_for_panes(window_name: &str) -> Result<Vec<String>> {
+        let input = ui::render_panes_prompt(window_name)?;
+
+        let pane_names: Vec<String> = input
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        if pane_names.is_empty() {
+            // Single pane, no commands
+            return Ok(vec![]);
+        }
+
+        // Ask for commands for each pane
+        let mut panes = Vec::new();
+        for pane_name in pane_names {
+            let command = ui::render_pane_command_prompt(&pane_name)?;
+            panes.push(command);
+        }
+
+        Ok(panes)
     }
 
     fn parse_paths_input(input: &str) -> Vec<String> {
