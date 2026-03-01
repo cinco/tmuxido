@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="docs/assets/tmuxido-logo.png" alt="tmuxido logo" width="200"/>
+</div>
+
 # tmuxido
 
 [![Build Status](https://drone.cincoeuzebio.com/api/badges/cinco/Tmuxido/status.svg)](https://drone.cincoeuzebio.com/cinco/Tmuxido)
