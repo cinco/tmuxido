@@ -170,6 +170,12 @@ Each window can have multiple panes with commands that run automatically:
 
 ## Author
 
-**Cinco** — [@cinco](https://github.com/cinco)
-
-[![GitHub](https://img.shields.io/badge/GitHub-cinco-181717?logo=github)](https://github.com/cinco)
+<div align="center">
+  <a href="https://github.com/cinco">
+    <img src="https://github.com/cinco.png" width="100" height="100" style="border-radius: 50%;" alt="Cinco avatar"/>
+  </a>
+  <br><br>
+  <strong>Cinco</strong>
+  <br>
+  <a href="https://github.com/cinco">@cinco</a>
+</div>
