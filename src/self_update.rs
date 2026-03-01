@@ -199,6 +199,19 @@ mod tests {
     }
 
     #[test]
+    fn should_prefix_arch_asset_with_tmuxido() {
+        let arch = detect_arch().expect("should detect supported arch");
+        assert!(
+            arch.starts_with("tmuxido-"),
+            "asset name must start with 'tmuxido-', got: {arch}"
+        );
+        assert!(
+            arch.ends_with("-linux"),
+            "asset name must end with '-linux', got: {arch}"
+        );
+    }
+
+    #[test]
     fn should_compare_versions_correctly() {
         assert_eq!(
             version_compare("0.3.0", "0.2.4"),
