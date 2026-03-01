@@ -158,11 +158,61 @@ panes = []
 
 ### Available Layouts
 
-- `main-horizontal` - Main pane on top, others below
-- `main-vertical` - Main pane on left, others on right
-- `tiled` - All panes tiled
-- `even-horizontal` - All panes in horizontal row
-- `even-vertical` - All panes in vertical column
+**`main-horizontal`** — Main pane on top, others below
+
+```
+┌──────────────────────┐
+│                      │
+│       main pane      │
+│                      │
+├──────────┬───────────┤
+│  pane 2  │  pane 3   │
+└──────────┴───────────┘
+```
+
+**`main-vertical`** — Main pane on left, others on right
+
+```
+┌─────────────┬────────┐
+│             │ pane 2 │
+│  main pane  ├────────┤
+│             │ pane 3 │
+│             ├────────┤
+│             │ pane 4 │
+└─────────────┴────────┘
+```
+
+**`tiled`** — All panes tiled equally
+
+```
+┌───────────┬──────────┐
+│  pane 1   │  pane 2  │
+├───────────┼──────────┤
+│  pane 3   │  pane 4  │
+└───────────┴──────────┘
+```
+
+**`even-horizontal`** — All panes side by side
+
+```
+┌────────┬────────┬────────┐
+│        │        │        │
+│ pane 1 │ pane 2 │ pane 3 │
+│        │        │        │
+└────────┴────────┴────────┘
+```
+
+**`even-vertical`** — All panes stacked
+
+```
+┌──────────────────────┐
+│       pane 1         │
+├──────────────────────┤
+│       pane 2         │
+├──────────────────────┤
+│       pane 3         │
+└──────────────────────┘
+```
 
 ### Panes
 
