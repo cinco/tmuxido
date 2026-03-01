@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.8.2] - 2026-03-01
+
+### Fixed
+- `install.sh`: grep pattern for `tag_name` now handles the space GitHub includes after the colon in JSON (`"tag_name": "x"` instead of `"tag_name":"x"`)
+
 ## [0.8.1] - 2026-03-01
 
 ### Fixed

@@ -19,7 +19,7 @@ esac
 api_resp=$(curl -sSL \
   -H "Accept: application/vnd.github.v3+json" \
   "$API_URL/repos/$REPO/releases/latest")
-tag=$(printf '%s' "$api_resp" | grep -o '"tag_name":"[^"]*"' | cut -d'"' -f4)
+tag=$(printf '%s' "$api_resp" | grep -o '"tag_name": *"[^"]*"' | grep -o '"[^"]*"$' | tr -d '"')
 
 if [ -z "$tag" ]; then
     echo "Could not fetch latest release." >&2
