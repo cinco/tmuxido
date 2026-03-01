@@ -96,48 +96,70 @@ impl Config {
                 )
             })?;
 
-            // Run interactive configuration wizard
-            let paths = Self::prompt_for_paths()?;
-            let max_depth = Self::prompt_for_max_depth()?;
-            let cache_enabled = Self::prompt_for_cache_enabled()?;
-            let cache_ttl_hours = if cache_enabled {
-                Self::prompt_for_cache_ttl()?
-            } else {
-                24
-            };
-            let windows = Self::prompt_for_windows()?;
-
-            // Render styled success message before moving windows
-            ui::render_config_created(&paths, max_depth, cache_enabled, cache_ttl_hours, &windows);
-
-            let config = Config {
-                paths: paths.clone(),
-                max_depth,
-                cache_enabled,
-                cache_ttl_hours,
-                update_check_interval_hours: default_update_check_interval_hours(),
-                default_session: SessionConfig { windows },
-            };
-
-            let toml_string =
-                toml::to_string_pretty(&config).context("Failed to serialize config")?;
-
-            fs::write(&config_path, toml_string).with_context(|| {
-                format!("Failed to write config file: {}", config_path.display())
-            })?;
-
-            // Offer to set up a keyboard shortcut (best-effort, non-fatal)
-            if let Err(e) = crate::shortcut::setup_shortcut_wizard() {
-                eprintln!("Warning: shortcut setup failed: {}", e);
-            }
-
-            // Offer to install .desktop entry + icon (best-effort, non-fatal)
-            if let Err(e) = crate::shortcut::setup_desktop_integration_wizard() {
-                eprintln!("Warning: desktop integration failed: {}", e);
+            // Ask whether to run the interactive wizard or apply sensible defaults
+            let raw = ui::render_setup_choice_prompt()?;
+            match ui::parse_setup_choice_input(&raw) {
+                ui::SetupChoice::Default => {
+                    Self::write_default_config(&config_path)?;
+                    ui::render_default_config_saved(&config_path.display().to_string());
+                }
+                ui::SetupChoice::Wizard => {
+                    Self::run_wizard(&config_path)?;
+                }
             }
         }
 
         Ok(config_path)
+    }
+
+    /// Write the built-in default config to `config_path` without any prompts.
+    fn write_default_config(config_path: &std::path::Path) -> Result<()> {
+        let config = Self::default_config();
+        let toml_string = toml::to_string_pretty(&config).context("Failed to serialize config")?;
+        fs::write(config_path, toml_string)
+            .with_context(|| format!("Failed to write config file: {}", config_path.display()))
+    }
+
+    /// Run the full interactive configuration wizard and offer shortcut / desktop setup at the end.
+    fn run_wizard(config_path: &std::path::Path) -> Result<()> {
+        let paths = Self::prompt_for_paths()?;
+        let max_depth = Self::prompt_for_max_depth()?;
+        let cache_enabled = Self::prompt_for_cache_enabled()?;
+        let cache_ttl_hours = if cache_enabled {
+            Self::prompt_for_cache_ttl()?
+        } else {
+            24
+        };
+        let windows = Self::prompt_for_windows()?;
+
+        // Render styled success message before moving windows
+        ui::render_config_created(&paths, max_depth, cache_enabled, cache_ttl_hours, &windows);
+
+        let config = Config {
+            paths,
+            max_depth,
+            cache_enabled,
+            cache_ttl_hours,
+            update_check_interval_hours: default_update_check_interval_hours(),
+            default_session: SessionConfig { windows },
+        };
+
+        let toml_string = toml::to_string_pretty(&config).context("Failed to serialize config")?;
+
+        fs::write(config_path, toml_string)
+            .with_context(|| format!("Failed to write config file: {}", config_path.display()))?;
+
+        // Offer to set up a keyboard shortcut (best-effort, non-fatal)
+        if let Err(e) = crate::shortcut::setup_shortcut_wizard() {
+            eprintln!("Warning: shortcut setup failed: {}", e);
+        }
+
+        // Offer to install .desktop entry + icon (best-effort, non-fatal)
+        if let Err(e) = crate::shortcut::setup_desktop_integration_wizard() {
+            eprintln!("Warning: desktop integration failed: {}", e);
+        }
+
+        Ok(())
     }
 
     fn prompt_for_paths() -> Result<Vec<String>> {
@@ -375,6 +397,35 @@ mod tests {
             Some("main-vertical".to_string())
         );
         assert_eq!(ui::parse_layout_input("invalid"), None);
+    }
+
+    #[test]
+    fn should_write_default_config_to_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let config_path = dir.path().join("tmuxido.toml");
+
+        Config::write_default_config(&config_path).unwrap();
+
+        assert!(config_path.exists());
+        let content = std::fs::read_to_string(&config_path).unwrap();
+        let loaded: Config = toml::from_str(&content).unwrap();
+        assert!(!loaded.paths.is_empty());
+        assert_eq!(loaded.max_depth, 5);
+        assert!(loaded.cache_enabled);
+        assert_eq!(loaded.cache_ttl_hours, 24);
+    }
+
+    #[test]
+    fn should_write_valid_toml_in_default_config() {
+        let dir = tempfile::tempdir().unwrap();
+        let config_path = dir.path().join("tmuxido.toml");
+
+        Config::write_default_config(&config_path).unwrap();
+
+        let content = std::fs::read_to_string(&config_path).unwrap();
+        // Must parse cleanly
+        let result: Result<Config, _> = toml::from_str(&content);
+        assert!(result.is_ok(), "Default config must be valid TOML");
     }
 
     #[test]

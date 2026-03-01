@@ -613,6 +613,91 @@ pub fn render_desktop_integration_success(result: &crate::shortcut::DesktopInsta
 
 // ============================================================================
 
+/// Choices offered when no configuration file is found on first run
+#[derive(Debug, PartialEq)]
+pub enum SetupChoice {
+    Wizard,
+    Default,
+}
+
+/// Parse the first-run setup choice input.
+///
+/// Accepts:
+/// - `""`, `" "`, `"1"`, `"w"`, `"wizard"` → `Wizard` (default)
+/// - `"2"`, `"d"`, `"default"` → `Default`
+/// - anything else falls back to `Wizard`
+pub fn parse_setup_choice_input(input: &str) -> SetupChoice {
+    match input.trim().to_lowercase().as_str() {
+        "2" | "d" | "default" => SetupChoice::Default,
+        _ => SetupChoice::Wizard,
+    }
+}
+
+/// Renders the first-run prompt asking whether to run the wizard or use defaults.
+/// Returns the raw user input.
+pub fn render_setup_choice_prompt() -> Result<String> {
+    let prompt_style = Style::new().bold(true).foreground(color_green());
+    let hint_style = Style::new().italic(true).foreground(color_dark_gray());
+    let title_style = Style::new().bold(true).foreground(color_blue());
+    let option_style = Style::new().foreground(color_purple());
+
+    println!();
+    println!("{}", title_style.render("  🚀 Welcome to tmuxido!"));
+    println!();
+    println!(
+        "{}",
+        hint_style.render("  No configuration found. How would you like to get started?")
+    );
+    println!();
+    println!(
+        "  {}",
+        option_style
+            .render("1. Run setup wizard   — configure paths, cache, and windows interactively")
+    );
+    println!(
+        "  {}",
+        option_style.render("2. Use default config — start immediately with sensible defaults")
+    );
+    println!();
+    print!("  {} ", prompt_style.render("❯ Choose (1/2):"));
+    io::stdout().flush().context("Failed to flush stdout")?;
+
+    let mut input = String::new();
+    io::stdin()
+        .read_line(&mut input)
+        .context("Failed to read input")?;
+
+    Ok(input.trim().to_string())
+}
+
+/// Renders a confirmation message after the default config is written.
+pub fn render_default_config_saved(config_path: &str) {
+    let success_style = Style::new().bold(true).foreground(color_green());
+    let info_style = Style::new().foreground(color_dark_gray());
+    let path_style = Style::new().bold(true).foreground(color_blue());
+
+    println!();
+    println!(
+        "{}",
+        success_style.render("  ✅ Default configuration saved!")
+    );
+    println!(
+        "    {} {}",
+        info_style.render("Config:"),
+        path_style.render(config_path)
+    );
+    println!();
+    println!(
+        "{}",
+        info_style.render(
+            "  ⚙️  Edit it anytime to customise your setup, or run 'tmuxido --setup-shortcut'."
+        )
+    );
+    println!();
+}
+
+// ============================================================================
+
 /// Parse comma-separated list into Vec<String>, filtering empty items
 pub fn parse_comma_separated_list(input: &str) -> Vec<String> {
     input
@@ -881,5 +966,51 @@ mod tests {
             icon_downloaded: false,
         };
         render_desktop_integration_success(&result);
+    }
+
+    // ---- SetupChoice / parse_setup_choice_input ----
+
+    #[test]
+    fn should_return_wizard_for_empty_input() {
+        assert_eq!(parse_setup_choice_input(""), SetupChoice::Wizard);
+        assert_eq!(parse_setup_choice_input("   "), SetupChoice::Wizard);
+    }
+
+    #[test]
+    fn should_return_wizard_for_option_1() {
+        assert_eq!(parse_setup_choice_input("1"), SetupChoice::Wizard);
+    }
+
+    #[test]
+    fn should_return_wizard_for_w_aliases() {
+        assert_eq!(parse_setup_choice_input("w"), SetupChoice::Wizard);
+        assert_eq!(parse_setup_choice_input("wizard"), SetupChoice::Wizard);
+        assert_eq!(parse_setup_choice_input("W"), SetupChoice::Wizard);
+        assert_eq!(parse_setup_choice_input("WIZARD"), SetupChoice::Wizard);
+    }
+
+    #[test]
+    fn should_return_default_for_option_2() {
+        assert_eq!(parse_setup_choice_input("2"), SetupChoice::Default);
+    }
+
+    #[test]
+    fn should_return_default_for_d_aliases() {
+        assert_eq!(parse_setup_choice_input("d"), SetupChoice::Default);
+        assert_eq!(parse_setup_choice_input("default"), SetupChoice::Default);
+        assert_eq!(parse_setup_choice_input("D"), SetupChoice::Default);
+        assert_eq!(parse_setup_choice_input("DEFAULT"), SetupChoice::Default);
+    }
+
+    #[test]
+    fn should_return_wizard_for_unknown_input() {
+        assert_eq!(parse_setup_choice_input("banana"), SetupChoice::Wizard);
+        assert_eq!(parse_setup_choice_input("3"), SetupChoice::Wizard);
+        assert_eq!(parse_setup_choice_input("yes"), SetupChoice::Wizard);
+    }
+
+    #[test]
+    fn render_default_config_saved_should_not_panic() {
+        render_default_config_saved("/home/user/.config/tmuxido/tmuxido.toml");
     }
 }
