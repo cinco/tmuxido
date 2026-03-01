@@ -4,6 +4,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use tmuxido::config::Config;
+use tmuxido::deps::ensure_dependencies;
 use tmuxido::{get_projects, launch_tmux_session, show_cache_status};
 
 #[derive(Parser, Debug)]
@@ -27,6 +28,9 @@ struct Args {
 
 fn main() -> Result<()> {
     let args = Args::parse();
+
+    // Check that fzf and tmux are installed; offer to install if missing
+    ensure_dependencies()?;
 
     // Ensure config exists
     Config::ensure_config_exists()?;
