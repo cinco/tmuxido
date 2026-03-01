@@ -130,6 +130,11 @@ impl Config {
             if let Err(e) = crate::shortcut::setup_shortcut_wizard() {
                 eprintln!("Warning: shortcut setup failed: {}", e);
             }
+
+            // Offer to install .desktop entry + icon (best-effort, non-fatal)
+            if let Err(e) = crate::shortcut::setup_desktop_integration_wizard() {
+                eprintln!("Warning: desktop integration failed: {}", e);
+            }
         }
 
         Ok(config_path)

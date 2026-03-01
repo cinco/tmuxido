@@ -551,6 +551,66 @@ pub fn render_shortcut_success(de: &str, combo: &str, details: &str, reload_hint
     println!();
 }
 
+/// Ask the user whether to install the .desktop entry and icon
+pub fn render_desktop_integration_prompt() -> Result<bool> {
+    let prompt_style = Style::new().bold(true).foreground(color_green());
+    let hint_style = Style::new().italic(true).foreground(color_dark_gray());
+
+    println!(
+        "{}",
+        hint_style.render(
+            "    Install a .desktop entry so tmuxido appears in app launchers (Walker, Rofi, etc.)?"
+        )
+    );
+    println!(
+        "{}",
+        hint_style
+            .render("    Also downloads the 96×96 icon from GitHub (requires internet access).")
+    );
+    print!(
+        "  {} ",
+        prompt_style.render("❯ Install desktop entry? (Y/n):")
+    );
+    io::stdout().flush().context("Failed to flush stdout")?;
+
+    let mut input = String::new();
+    io::stdin()
+        .read_line(&mut input)
+        .context("Failed to read input")?;
+
+    let trimmed = input.trim().to_lowercase();
+    Ok(trimmed != "n" && trimmed != "no")
+}
+
+/// Render a success message after desktop integration is installed
+pub fn render_desktop_integration_success(result: &crate::shortcut::DesktopInstallResult) {
+    let success_style = Style::new().bold(true).foreground(color_green());
+    let label_style = Style::new().foreground(color_light_gray());
+    let value_style = Style::new().bold(true).foreground(color_blue());
+    let warn_style = Style::new().italic(true).foreground(color_orange());
+
+    println!();
+    println!("{}", success_style.render("  🖥️  Desktop entry installed!"));
+    println!(
+        "    {} {}",
+        label_style.render(".desktop:"),
+        value_style.render(&result.desktop_path.display().to_string())
+    );
+    if result.icon_downloaded {
+        println!(
+            "    {} {}",
+            label_style.render("icon:"),
+            value_style.render(&result.icon_path.display().to_string())
+        );
+    } else {
+        println!(
+            "    {}",
+            warn_style.render("icon: download skipped (no network or curl unavailable)")
+        );
+    }
+    println!();
+}
+
 // ============================================================================
 
 /// Parse comma-separated list into Vec<String>, filtering empty items
@@ -793,5 +853,33 @@ mod tests {
             "Added to ~/.config/hypr/bindings.conf",
             "Reload Hyprland with Super+Shift+R to activate.",
         );
+    }
+
+    #[test]
+    fn render_desktop_integration_success_should_not_panic() {
+        use crate::shortcut::DesktopInstallResult;
+        use std::path::PathBuf;
+        let result = DesktopInstallResult {
+            desktop_path: PathBuf::from("/home/user/.local/share/applications/tmuxido.desktop"),
+            icon_path: PathBuf::from(
+                "/home/user/.local/share/icons/hicolor/96x96/apps/tmuxido.png",
+            ),
+            icon_downloaded: true,
+        };
+        render_desktop_integration_success(&result);
+    }
+
+    #[test]
+    fn render_desktop_integration_success_without_icon_should_not_panic() {
+        use crate::shortcut::DesktopInstallResult;
+        use std::path::PathBuf;
+        let result = DesktopInstallResult {
+            desktop_path: PathBuf::from("/home/user/.local/share/applications/tmuxido.desktop"),
+            icon_path: PathBuf::from(
+                "/home/user/.local/share/icons/hicolor/96x96/apps/tmuxido.png",
+            ),
+            icon_downloaded: false,
+        };
+        render_desktop_integration_success(&result);
     }
 }

@@ -595,6 +595,122 @@ pub fn setup_shortcut_wizard() -> Result<()> {
 }
 
 // ============================================================================
+// Desktop integration (.desktop file + icon)
+// ============================================================================
+
+const ICON_URL: &str = "https://raw.githubusercontent.com/cinco/tmuxido/refs/heads/main/docs/assets/tmuxido-icon_96.png";
+
+const DESKTOP_CONTENT: &str = "[Desktop Entry]
+Name=Tmuxido
+Comment=Quickly find and open projects in tmux
+Exec=tmuxido
+Icon=tmuxido
+Type=Application
+Categories=Development;Utility;
+Terminal=true
+Keywords=tmux;project;fzf;dev;
+StartupWMClass=tmuxido
+";
+
+/// Path where the .desktop entry will be installed
+pub fn desktop_file_path() -> Result<PathBuf> {
+    let data_dir = dirs::data_dir().context("Could not determine data directory")?;
+    Ok(data_dir.join("applications").join("tmuxido.desktop"))
+}
+
+/// Path where the 96×96 icon will be installed
+pub fn icon_install_path() -> Result<PathBuf> {
+    let data_dir = dirs::data_dir().context("Could not determine data directory")?;
+    Ok(data_dir
+        .join("icons")
+        .join("hicolor")
+        .join("96x96")
+        .join("apps")
+        .join("tmuxido.png"))
+}
+
+/// Result of a desktop integration install
+pub struct DesktopInstallResult {
+    pub desktop_path: PathBuf,
+    pub icon_path: PathBuf,
+    pub icon_downloaded: bool,
+}
+
+/// Write the .desktop file and download the icon to the given paths.
+/// Icon download is best-effort — does not fail if curl or network is unavailable.
+pub fn install_desktop_integration_to(
+    desktop_path: &Path,
+    icon_path: &Path,
+) -> Result<DesktopInstallResult> {
+    // Write .desktop
+    if let Some(parent) = desktop_path.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create {}", parent.display()))?;
+    }
+    std::fs::write(desktop_path, DESKTOP_CONTENT)
+        .with_context(|| format!("Failed to write {}", desktop_path.display()))?;
+
+    // Download icon (best-effort via curl)
+    let icon_downloaded = (|| -> Option<()> {
+        if let Some(parent) = icon_path.parent() {
+            std::fs::create_dir_all(parent).ok()?;
+        }
+        std::process::Command::new("curl")
+            .args(["-fsSL", ICON_URL, "-o", &icon_path.to_string_lossy()])
+            .status()
+            .ok()?
+            .success()
+            .then_some(())
+    })()
+    .is_some();
+
+    // Refresh desktop database (best-effort)
+    if let Some(apps_dir) = desktop_path.parent() {
+        let _ = std::process::Command::new("update-desktop-database")
+            .arg(apps_dir)
+            .status();
+    }
+
+    // Refresh icon cache (best-effort)
+    if icon_downloaded {
+        // Navigate up from …/96x96/apps → …/icons/hicolor
+        let hicolor_dir = icon_path
+            .parent()
+            .and_then(|p| p.parent())
+            .and_then(|p| p.parent());
+        if let Some(dir) = hicolor_dir {
+            let _ = std::process::Command::new("gtk-update-icon-cache")
+                .args(["-f", "-t", &dir.to_string_lossy()])
+                .status();
+        }
+    }
+
+    Ok(DesktopInstallResult {
+        desktop_path: desktop_path.to_path_buf(),
+        icon_path: icon_path.to_path_buf(),
+        icon_downloaded,
+    })
+}
+
+/// Install .desktop and icon to the standard XDG locations
+pub fn install_desktop_integration() -> Result<DesktopInstallResult> {
+    install_desktop_integration_to(&desktop_file_path()?, &icon_install_path()?)
+}
+
+/// Interactive wizard that asks the user and then installs desktop integration
+pub fn setup_desktop_integration_wizard() -> Result<()> {
+    crate::ui::render_section_header("Desktop Integration");
+
+    if !crate::ui::render_desktop_integration_prompt()? {
+        return Ok(());
+    }
+
+    let result = install_desktop_integration()?;
+    crate::ui::render_desktop_integration_success(&result);
+    Ok(())
+}
+
+// ============================================================================
 // Tests
 // ============================================================================
 
@@ -820,5 +936,49 @@ mod tests {
     fn should_normalize_to_uppercase_plus_separated() {
         let c = KeyCombo::parse("super+shift+t").unwrap();
         assert_eq!(c.normalized(), "SUPER+SHIFT+T");
+    }
+
+    // --- desktop integration ---
+
+    #[test]
+    fn should_write_desktop_file_to_given_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let desktop = dir.path().join("apps").join("tmuxido.desktop");
+        let icon = dir.path().join("icons").join("tmuxido.png");
+
+        let result = install_desktop_integration_to(&desktop, &icon).unwrap();
+
+        assert!(result.desktop_path.exists());
+        let content = std::fs::read_to_string(&result.desktop_path).unwrap();
+        assert!(content.contains("[Desktop Entry]"));
+        assert!(content.contains("Exec=tmuxido"));
+        assert!(content.contains("Icon=tmuxido"));
+        assert!(content.contains("Terminal=true"));
+    }
+
+    #[test]
+    fn should_create_parent_directories_for_desktop_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let desktop = dir
+            .path()
+            .join("nested")
+            .join("apps")
+            .join("tmuxido.desktop");
+        let icon = dir.path().join("icons").join("tmuxido.png");
+
+        install_desktop_integration_to(&desktop, &icon).unwrap();
+
+        assert!(desktop.exists());
+    }
+
+    #[test]
+    fn desktop_content_contains_required_fields() {
+        assert!(DESKTOP_CONTENT.contains("[Desktop Entry]"));
+        assert!(DESKTOP_CONTENT.contains("Name=Tmuxido"));
+        assert!(DESKTOP_CONTENT.contains("Exec=tmuxido"));
+        assert!(DESKTOP_CONTENT.contains("Icon=tmuxido"));
+        assert!(DESKTOP_CONTENT.contains("Type=Application"));
+        assert!(DESKTOP_CONTENT.contains("Terminal=true"));
+        assert!(DESKTOP_CONTENT.contains("StartupWMClass=tmuxido"));
     }
 }

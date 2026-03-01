@@ -1,6 +1,9 @@
 use std::fs;
 use tempfile::tempdir;
-use tmuxido::shortcut::{KeyCombo, check_kde_conflict, write_hyprland_binding, write_kde_shortcut};
+use tmuxido::shortcut::{
+    KeyCombo, check_kde_conflict, install_desktop_integration_to, write_hyprland_binding,
+    write_kde_shortcut,
+};
 
 #[test]
 fn writes_hyprland_binding_to_new_file() {
@@ -125,4 +128,38 @@ fn check_kde_conflict_returns_none_for_free_binding() {
 fn check_kde_conflict_returns_none_when_file_missing() {
     let combo = KeyCombo::parse("Super+Shift+T").unwrap();
     assert!(check_kde_conflict(std::path::Path::new("/nonexistent/path"), &combo).is_none());
+}
+
+#[test]
+fn installs_desktop_file_to_given_path() {
+    let dir = tempdir().unwrap();
+    let desktop_path = dir.path().join("applications").join("tmuxido.desktop");
+    let icon_path = dir
+        .path()
+        .join("icons")
+        .join("hicolor")
+        .join("96x96")
+        .join("apps")
+        .join("tmuxido.png");
+
+    let result = install_desktop_integration_to(&desktop_path, &icon_path).unwrap();
+
+    assert!(result.desktop_path.exists(), ".desktop file should exist");
+    let content = fs::read_to_string(&result.desktop_path).unwrap();
+    assert!(content.contains("[Desktop Entry]"));
+    assert!(content.contains("Exec=tmuxido"));
+    assert!(content.contains("Icon=tmuxido"));
+    assert!(content.contains("Terminal=true"));
+    assert!(content.contains("StartupWMClass=tmuxido"));
+}
+
+#[test]
+fn desktop_install_creates_parent_dirs() {
+    let dir = tempdir().unwrap();
+    let desktop_path = dir.path().join("a").join("b").join("tmuxido.desktop");
+    let icon_path = dir.path().join("icons").join("tmuxido.png");
+
+    install_desktop_integration_to(&desktop_path, &icon_path).unwrap();
+
+    assert!(desktop_path.exists());
 }

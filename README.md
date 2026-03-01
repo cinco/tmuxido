@@ -112,7 +112,12 @@ Set up a desktop keyboard shortcut (Hyprland, GNOME, KDE):
 tmuxido --setup-shortcut
 ```
 
-This is also offered automatically on first run. Re-run it any time to reconfigure the shortcut or after switching desktop environments.
+Install the `.desktop` entry and icon (so tmuxido appears in app launchers like Walker/Rofi):
+```bash
+tmuxido --create-desktop-shortcut
+```
+
+Both are also offered automatically on first run. Re-run them any time to reconfigure.
 
 View help:
 ```bash

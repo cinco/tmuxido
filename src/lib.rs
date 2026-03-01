@@ -20,6 +20,10 @@ pub fn setup_shortcut_wizard() -> Result<()> {
     shortcut::setup_shortcut_wizard()
 }
 
+pub fn setup_desktop_integration_wizard() -> Result<()> {
+    shortcut::setup_desktop_integration_wizard()
+}
+
 pub fn show_cache_status(config: &Config) -> Result<()> {
     if !config.cache_enabled {
         println!("Cache is disabled in configuration");

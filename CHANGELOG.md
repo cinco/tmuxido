@@ -13,8 +13,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - GNOME: registers a custom keybinding via `gsettings`
 - KDE: appends a `[tmuxido]` section to `~/.config/kglobalshortcutsrc`
 - Conflict detection per DE (Hyprland via `hyprctl binds -j`, KDE via config file, GNOME via gsettings); suggests next free combo from a fallback list
+- `--create-desktop-shortcut` flag to (re-)install the `.desktop` entry and icon at any time
 - `shortcut` module (`src/shortcut.rs`) with full unit and integration test coverage
-- Icon and `.desktop` file installed by `install.sh` for launcher and window-rule integration
+- Icon and `.desktop` file installed by `install.sh` and offered in the first-run wizard
 
 ## [0.7.1] - 2026-03-01
 

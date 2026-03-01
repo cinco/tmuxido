@@ -7,7 +7,10 @@ use tmuxido::config::Config;
 use tmuxido::deps::ensure_dependencies;
 use tmuxido::self_update;
 use tmuxido::update_check;
-use tmuxido::{get_projects, launch_tmux_session, setup_shortcut_wizard, show_cache_status};
+use tmuxido::{
+    get_projects, launch_tmux_session, setup_desktop_integration_wizard, setup_shortcut_wizard,
+    show_cache_status,
+};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -34,6 +37,10 @@ struct Args {
     /// Set up a keyboard shortcut to launch tmuxido
     #[arg(long)]
     setup_shortcut: bool,
+
+    /// Install the .desktop entry and icon for app launcher integration
+    #[arg(long)]
+    create_desktop_shortcut: bool,
 }
 
 fn main() -> Result<()> {
@@ -47,6 +54,11 @@ fn main() -> Result<()> {
     // Handle standalone shortcut setup
     if args.setup_shortcut {
         return setup_shortcut_wizard();
+    }
+
+    // Handle standalone desktop integration setup
+    if args.create_desktop_shortcut {
+        return setup_desktop_integration_wizard();
     }
 
     // Check that fzf and tmux are installed; offer to install if missing
