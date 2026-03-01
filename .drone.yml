@@ -31,14 +31,18 @@ steps:
         else FILL="#e05d44"; fi
         echo "PCT=$PCT FILL=$FILL"
         printf '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="20"><rect width="76" height="20" fill="#555"/><rect x="76" width="44" height="20" fill="%s"/><g fill="#fff" text-anchor="middle" font-family="sans-serif" font-size="11"><text x="38" y="14">coverage</text><text x="98" y="14">%s%%</text></g></svg>' "$FILL" "$PCT" > coverage.svg
-        curl -s -X DELETE \
+        CONTENT=$(base64 coverage.svg | tr -d '\n')
+        SHA=$(curl -s -H "Authorization: token $GITEA_TOKEN" \
+          "https://git.cincoeuzebio.com/api/v1/repos/cinco/Tmuxido/contents/coverage.svg?ref=badges" \
+          | jq -r '.sha')
+        jq -n --arg msg "ci: update coverage badge [CI SKIP]" \
+          --arg content "$CONTENT" --arg sha "$SHA" --arg branch "badges" \
+          '{message: $msg, content: $content, sha: $sha, branch: $branch}' \
+        | curl -fsSL -X PUT \
           -H "Authorization: token $GITEA_TOKEN" \
-          "https://git.cincoeuzebio.com/api/v1/packages/cinco/generic/badges/latest" || true
-        curl -fsSL -X PUT \
-          -H "Authorization: token $GITEA_TOKEN" \
-          -H "Content-Type: image/svg+xml" \
-          --data-binary @coverage.svg \
-          "https://git.cincoeuzebio.com/api/packages/cinco/generic/badges/latest/coverage.svg"
+          -H "Content-Type: application/json" \
+          "https://git.cincoeuzebio.com/api/v1/repos/cinco/Tmuxido/contents/coverage.svg" \
+          -d @-
 
 ---
 kind: pipeline
