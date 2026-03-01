@@ -167,3 +167,9 @@ Each window can have multiple panes with commands that run automatically:
 - First pane is the main window pane
 - Additional panes are created by splitting
 - Empty panes array = just open the window in the project directory
+
+## Author
+
+**Cinco** — [@cinco](https://github.com/cinco)
+
+[![GitHub](https://img.shields.io/badge/GitHub-cinco-181717?logo=github)](https://github.com/cinco)
