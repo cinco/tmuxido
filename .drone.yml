@@ -22,23 +22,22 @@ steps:
       GITEA_TOKEN:
         from_secret: gitea_token
     commands:
-      - apt-get update -qq && apt-get install -y -qq jq curl
       - |
+        apt-get update -qq && apt-get install -y -qq jq curl
         PCT=$(cargo tarpaulin 2>&1 | awk '/coverage,/{print int($1)}')
-        echo "PCT=$PCT"
         [ -z "$PCT" ] && PCT=0
         if [ "$PCT" -ge 80 ]; then COLOR="brightgreen"
         elif [ "$PCT" -ge 60 ]; then COLOR="yellow"
         else COLOR="red"; fi
+        echo "PCT=$PCT COLOR=$COLOR"
         curl -sf "https://img.shields.io/badge/coverage-${PCT}%25-${COLOR}.svg" -o coverage.svg
-      - |
-        CONTENT=$(base64 -w 0 coverage.svg)
+        CONTENT=$(cat coverage.svg | base64 | tr -d '\n')
         echo "Content length: ${#CONTENT}"
         SHA_RESP=$(curl -s \
           -H "Authorization: token $GITEA_TOKEN" \
           "https://git.cincoeuzebio.com/api/v1/repos/cinco/Tmuxido/contents/badges/coverage.svg?ref=master")
         echo "SHA response: $SHA_RESP"
-        SHA=$(echo "$SHA_RESP" | jq -r '.sha // empty')
+        SHA=$(echo "$SHA_RESP" | tr -d '\000-\037' | jq -r '.sha // empty')
         echo "SHA: '$SHA'"
         if [ -n "$SHA" ]; then
           PAYLOAD=$(jq -n --arg msg "ci: update coverage badge [CI SKIP]" \
@@ -60,7 +59,7 @@ steps:
             -d "$PAYLOAD")
         fi
         echo "API response: $RESPONSE"
-        echo "$RESPONSE" | jq -e '.content.sha' > /dev/null
+        echo "$RESPONSE" | tr -d '\000-\037' | jq -e '.content.sha' > /dev/null
 
 ---
 kind: pipeline
