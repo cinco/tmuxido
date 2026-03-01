@@ -32,14 +32,15 @@ steps:
         else COLOR="red"; fi
         curl -sf "https://img.shields.io/badge/coverage-${PCT}%25-${COLOR}.svg" -o coverage.svg
       - |
-        echo "Badge size: $(wc -c < coverage.svg) bytes"
-        SHA=$(curl -sf \
-          -H "Authorization: token $GITEA_TOKEN" \
-          "https://git.cincoeuzebio.com/api/v1/repos/cinco/Tmuxido/contents/badges/coverage.svg?ref=master" \
-          | jq -r '.sha // empty' || echo "")
-        echo "Existing SHA: '${SHA}'"
-        CONTENT=$(base64 -w 0 coverage.svg)
+        ls -la coverage.svg
+        CONTENT=$(openssl base64 -in coverage.svg -A)
         echo "Content length: ${#CONTENT}"
+        SHA_RESP=$(curl -s \
+          -H "Authorization: token $GITEA_TOKEN" \
+          "https://git.cincoeuzebio.com/api/v1/repos/cinco/Tmuxido/contents/badges/coverage.svg?ref=master")
+        echo "SHA response: $SHA_RESP"
+        SHA=$(echo "$SHA_RESP" | jq -r '.sha // empty')
+        echo "SHA: '$SHA'"
         if [ -n "$SHA" ]; then
           PAYLOAD=$(jq -n --arg msg "ci: update coverage badge [CI SKIP]" \
             --arg content "$CONTENT" --arg sha "$SHA" --arg branch "master" \
