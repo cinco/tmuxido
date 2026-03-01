@@ -76,9 +76,14 @@ steps:
     commands:
       - apk add --no-cache curl jq
       - |
-        # Extract changelog entry for this tag (strip leading 'v' to match CHANGELOG format)
-        TAG="${DRONE_TAG#v}"
-        BODY=$(awk "/^## \[${TAG}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
+        # Read DRONE_TAG via ENVIRON inside awk to avoid Drone's ${VAR} substitution
+        # which would replace ${TAG} with an empty string before the shell runs.
+        BODY=$(awk '
+          BEGIN { tag = ENVIRON["DRONE_TAG"]; gsub(/^v/, "", tag) }
+          /^## \[/ { in_section = (index($0, "[" tag "]") > 0); next }
+          in_section && /^## \[/ { exit }
+          in_section { print }
+        ' CHANGELOG.md)
         RELEASE_ID=$(curl -fsSL -X POST \
           -H "Authorization: token $GITEA_TOKEN" \
           -H "Content-Type: application/json" \
