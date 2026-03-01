@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use tmuxido::config::Config;
 use tmuxido::deps::ensure_dependencies;
+use tmuxido::self_update;
 use tmuxido::{get_projects, launch_tmux_session, show_cache_status};
 
 #[derive(Parser, Debug)]
@@ -24,10 +25,19 @@ struct Args {
     /// Show cache status and exit
     #[arg(long)]
     cache_status: bool,
+
+    /// Update tmuxido to the latest version
+    #[arg(long)]
+    update: bool,
 }
 
 fn main() -> Result<()> {
     let args = Args::parse();
+
+    // Handle self-update before anything else
+    if args.update {
+        return self_update::self_update();
+    }
 
     // Check that fzf and tmux are installed; offer to install if missing
     ensure_dependencies()?;

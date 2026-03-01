@@ -21,6 +21,7 @@ A Rust-based tool to quickly find and open projects in tmux using fzf. No extern
 - TOML-based configuration
 - Smart caching system for fast subsequent runs
 - Configurable cache TTL
+- Self-update capability (`tmuxido --update`)
 - Zero external dependencies (except tmux and fzf)
 
 ## Installation
@@ -95,6 +96,11 @@ tmuxido -r
 Check cache status:
 ```bash
 tmuxido --cache-status
+```
+
+Update tmuxido to the latest version:
+```bash
+tmuxido --update
 ```
 
 View help:

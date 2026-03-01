@@ -1,6 +1,7 @@
 pub mod cache;
 pub mod config;
 pub mod deps;
+pub mod self_update;
 pub mod session;
 
 use anyhow::Result;
