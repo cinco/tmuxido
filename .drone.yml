@@ -32,8 +32,7 @@ steps:
         else COLOR="red"; fi
         curl -sf "https://img.shields.io/badge/coverage-${PCT}%25-${COLOR}.svg" -o coverage.svg
       - |
-        ls -la coverage.svg
-        CONTENT=$(openssl base64 -in coverage.svg -A)
+        CONTENT=$(base64 -w 0 coverage.svg)
         echo "Content length: ${#CONTENT}"
         SHA_RESP=$(curl -s \
           -H "Authorization: token $GITEA_TOKEN" \
@@ -45,16 +44,21 @@ steps:
           PAYLOAD=$(jq -n --arg msg "ci: update coverage badge [CI SKIP]" \
             --arg content "$CONTENT" --arg sha "$SHA" --arg branch "master" \
             '{message: $msg, content: $content, sha: $sha, branch: $branch}')
+          RESPONSE=$(curl -s -X PUT \
+            -H "Authorization: token $GITEA_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://git.cincoeuzebio.com/api/v1/repos/cinco/Tmuxido/contents/badges/coverage.svg" \
+            -d "$PAYLOAD")
         else
           PAYLOAD=$(jq -n --arg msg "ci: add coverage badge [CI SKIP]" \
             --arg content "$CONTENT" --arg branch "master" \
             '{message: $msg, content: $content, branch: $branch}')
+          RESPONSE=$(curl -s -X POST \
+            -H "Authorization: token $GITEA_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://git.cincoeuzebio.com/api/v1/repos/cinco/Tmuxido/contents/badges/coverage.svg" \
+            -d "$PAYLOAD")
         fi
-        RESPONSE=$(curl -s -X PUT \
-          -H "Authorization: token $GITEA_TOKEN" \
-          -H "Content-Type: application/json" \
-          "https://git.cincoeuzebio.com/api/v1/repos/cinco/Tmuxido/contents/badges/coverage.svg" \
-          -d "$PAYLOAD")
         echo "API response: $RESPONSE"
         echo "$RESPONSE" | jq -e '.content.sha' > /dev/null
 
