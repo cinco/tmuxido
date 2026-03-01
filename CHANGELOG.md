@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.0] - 2026-03-01
+
+### Added
+- First-run setup choice prompt: when no configuration file exists, tmuxido now asks whether to run the interactive wizard or apply sensible defaults immediately
+- `SetupChoice` enum and `parse_setup_choice_input` in `ui` module (pure, fully tested)
+- `Config::write_default_config` helper for writing defaults without any prompts
+- `Config::run_wizard` extracted from `ensure_config_exists` for clarity and testability
+- `render_setup_choice_prompt` and `render_default_config_saved` render functions
+
 ## [0.8.3] - 2026-03-01
 
 ### Fixed
