@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.5.0] - 2026-03-01
+
+### Added
+- Interactive configuration wizard on first run with styled prompts
+- `lipgloss` dependency for beautiful terminal UI with Tokyo Night theme colors
+- Emoji-enhanced prompts and feedback during setup
+- Configure project paths interactively with comma-separated input
+- Configure `max_depth` for project discovery scanning
+- Configure cache settings (`cache_enabled`, `cache_ttl_hours`)
+- Configure default session windows interactively
+- Configure panes within each window with custom names
+- Configure startup commands for each pane (e.g., `nvim .`, `npm run dev`)
+- New `ui` module with styled render functions for all prompts
+- Comprehensive summary showing all configured settings after setup
+
 ## [0.4.2] - 2026-03-01
 
 ### Fixed
