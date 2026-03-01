@@ -16,12 +16,16 @@ case "$arch" in
     *) echo "Unsupported architecture: $arch" >&2; exit 1 ;;
 esac
 
-tag=$(curl -fsSL \
+api_resp=$(curl -sSL \
   -H "Accept: application/vnd.github.v3+json" \
-  "$API_URL/repos/$REPO/releases/latest" \
-  | grep -o '"tag_name":"[^"]*"' | cut -d'"' -f4)
+  "$API_URL/repos/$REPO/releases/latest")
+tag=$(printf '%s' "$api_resp" | grep -o '"tag_name":"[^"]*"' | cut -d'"' -f4)
 
-[ -z "$tag" ] && { echo "Could not fetch latest release" >&2; exit 1; }
+if [ -z "$tag" ]; then
+    echo "Could not fetch latest release." >&2
+    printf 'GitHub API response: %s\n' "$api_resp" | head -c 400 >&2
+    exit 1
+fi
 
 echo "Installing tmuxido $tag..."
 
