@@ -47,6 +47,8 @@ name: release
 trigger:
   event:
     - tag
+  ref:
+    - refs/tags/[0-9]*
 
 steps:
   - name: build-x86_64
