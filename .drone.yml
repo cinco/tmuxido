@@ -26,18 +26,18 @@ steps:
         apt-get update -qq && apt-get install -y -qq jq curl
         PCT=$(cargo tarpaulin 2>&1 | awk '/coverage,/{print int($1)}')
         [ -z "$PCT" ] && PCT=0
-        if [ "$PCT" -ge 80 ]; then COLOR="brightgreen"
-        elif [ "$PCT" -ge 60 ]; then COLOR="yellow"
-        else COLOR="red"; fi
-        echo "PCT=$PCT COLOR=$COLOR"
-        curl -sf "https://img.shields.io/badge/coverage-${PCT}%25-${COLOR}.svg" -o coverage.svg
-        CONTENT=$(cat coverage.svg | base64 | tr -d '\n')
+        if [ "$PCT" -ge 80 ]; then FILL="#4c1"
+        elif [ "$PCT" -ge 60 ]; then FILL="#dfb317"
+        else FILL="#e05d44"; fi
+        echo "PCT=$PCT FILL=$FILL"
+        printf '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="20"><rect width="76" height="20" fill="#555"/><rect x="76" width="44" height="20" fill="%s"/><g fill="#fff" text-anchor="middle" font-family="sans-serif" font-size="11"><text x="38" y="14">coverage</text><text x="98" y="14">%s%%</text></g></svg>' "$FILL" "$PCT" > coverage.svg
+        CONTENT=$(base64 coverage.svg | tr -d '\n')
         echo "Content length: ${#CONTENT}"
         SHA_RESP=$(curl -s \
           -H "Authorization: token $GITEA_TOKEN" \
           "https://git.cincoeuzebio.com/api/v1/repos/cinco/Tmuxido/contents/badges/coverage.svg?ref=master")
         echo "SHA response: $SHA_RESP"
-        SHA=$(echo "$SHA_RESP" | tr -d '\000-\037' | jq -r '.sha // empty')
+        SHA=$(echo "$SHA_RESP" | jq -r '.sha // empty')
         echo "SHA: '$SHA'"
         if [ -n "$SHA" ]; then
           PAYLOAD=$(jq -n --arg msg "ci: update coverage badge [CI SKIP]" \
@@ -59,7 +59,7 @@ steps:
             -d "$PAYLOAD")
         fi
         echo "API response: $RESPONSE"
-        echo "$RESPONSE" | tr -d '\000-\037' | jq -e '.content.sha' > /dev/null
+        echo "$RESPONSE" | tr -d '\n' | jq -e '.content.sha' > /dev/null
 
 ---
 kind: pipeline
