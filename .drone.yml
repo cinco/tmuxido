@@ -25,7 +25,7 @@ steps:
       - apt-get update -qq && apt-get install -y -qq jq curl
       - cargo tarpaulin --out Json 2>/dev/null
       - |
-        PCT=$(jq '.coverage | floor' tarpaulin-report.json)
+        PCT=$(jq '(.covered / .coverable * 100) | floor' tarpaulin-report.json)
         if [ "$PCT" -ge 80 ]; then COLOR="brightgreen"
         elif [ "$PCT" -ge 60 ]; then COLOR="yellow"
         else COLOR="red"; fi
