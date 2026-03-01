@@ -20,8 +20,8 @@ pub fn current_version() -> &'static str {
 fn detect_arch() -> Result<&'static str> {
     let arch = std::env::consts::ARCH;
     match arch {
-        "x86_64" => Ok("x86_64-linux"),
-        "aarch64" => Ok("aarch64-linux"),
+        "x86_64" => Ok("tmuxido-x86_64-linux"),
+        "aarch64" => Ok("tmuxido-aarch64-linux"),
         _ => Err(anyhow::anyhow!("Unsupported architecture: {}", arch)),
     }
 }
