@@ -133,6 +133,12 @@ pub fn render_config_created(
     println!("{}", label_style.render("  🪟 Default Windows:"));
     for window in windows {
         println!("    {}", window_style.render(&format!("◦ {}", window.name)));
+        if let Some(layout) = &window.layout {
+            println!(
+                "{}",
+                info_style.render(&format!("    └─ layout: {}", layout))
+            );
+        }
         if !window.panes.is_empty() {
             for (i, pane) in window.panes.iter().enumerate() {
                 let pane_display = if pane.is_empty() {
@@ -297,6 +303,67 @@ pub fn render_panes_prompt(window_name: &str) -> Result<String> {
         .context("Failed to read input")?;
 
     Ok(input.trim().to_string())
+}
+
+/// Renders a prompt for the layout of a window with multiple panes
+pub fn render_layout_prompt(window_name: &str, pane_count: usize) -> Result<Option<String>> {
+    let prompt_style = Style::new().bold(true).foreground(color_green());
+    let hint_style = Style::new().italic(true).foreground(color_dark_gray());
+    let window_style = Style::new().bold(true).foreground(color_purple());
+    let label_style = Style::new().foreground(color_blue());
+
+    println!();
+    println!(
+        "  Layout for window {} ({} panes):",
+        window_style.render(window_name),
+        label_style.render(&pane_count.to_string())
+    );
+    println!(
+        "{}",
+        hint_style.render("    Choose a pane layout (leave empty for no layout):")
+    );
+    println!(
+        "{}",
+        hint_style.render("    1. main-horizontal  — main pane on top, others below")
+    );
+    println!(
+        "{}",
+        hint_style.render("    2. main-vertical    — main pane on left, others on right")
+    );
+    println!(
+        "{}",
+        hint_style.render("    3. tiled            — all panes tiled equally")
+    );
+    println!(
+        "{}",
+        hint_style.render("    4. even-horizontal  — all panes side by side")
+    );
+    println!(
+        "{}",
+        hint_style.render("    5. even-vertical    — all panes stacked vertically")
+    );
+    print!("  {} ", prompt_style.render("❯ Layout (1-5 or name):"));
+    io::stdout().flush().context("Failed to flush stdout")?;
+
+    let mut input = String::new();
+    io::stdin()
+        .read_line(&mut input)
+        .context("Failed to read input")?;
+
+    Ok(parse_layout_input(input.trim()))
+}
+
+/// Parse layout input: accepts number (1-5) or layout name; returns None for empty/invalid
+pub fn parse_layout_input(input: &str) -> Option<String> {
+    match input.trim() {
+        "" => None,
+        "1" | "main-horizontal" => Some("main-horizontal".to_string()),
+        "2" | "main-vertical" => Some("main-vertical".to_string()),
+        "3" | "tiled" => Some("tiled".to_string()),
+        "4" | "even-horizontal" => Some("even-horizontal".to_string()),
+        "5" | "even-vertical" => Some("even-vertical".to_string()),
+        _ => None,
+    }
 }
 
 /// Renders a prompt for a pane command
@@ -529,6 +596,50 @@ mod tests {
             },
         ];
         render_config_created(&vec!["~/Projects".to_string()], 5, true, 24, &windows);
+    }
+
+    #[test]
+    fn should_return_none_for_empty_layout_input() {
+        assert_eq!(parse_layout_input(""), None);
+        assert_eq!(parse_layout_input("   "), None);
+    }
+
+    #[test]
+    fn should_parse_layout_by_number() {
+        assert_eq!(parse_layout_input("1"), Some("main-horizontal".to_string()));
+        assert_eq!(parse_layout_input("2"), Some("main-vertical".to_string()));
+        assert_eq!(parse_layout_input("3"), Some("tiled".to_string()));
+        assert_eq!(parse_layout_input("4"), Some("even-horizontal".to_string()));
+        assert_eq!(parse_layout_input("5"), Some("even-vertical".to_string()));
+    }
+
+    #[test]
+    fn should_parse_layout_by_name() {
+        assert_eq!(
+            parse_layout_input("main-horizontal"),
+            Some("main-horizontal".to_string())
+        );
+        assert_eq!(
+            parse_layout_input("main-vertical"),
+            Some("main-vertical".to_string())
+        );
+        assert_eq!(parse_layout_input("tiled"), Some("tiled".to_string()));
+        assert_eq!(
+            parse_layout_input("even-horizontal"),
+            Some("even-horizontal".to_string())
+        );
+        assert_eq!(
+            parse_layout_input("even-vertical"),
+            Some("even-vertical".to_string())
+        );
+    }
+
+    #[test]
+    fn should_return_none_for_invalid_layout_input() {
+        assert_eq!(parse_layout_input("6"), None);
+        assert_eq!(parse_layout_input("0"), None);
+        assert_eq!(parse_layout_input("unknown"), None);
+        assert_eq!(parse_layout_input("horizontal"), None);
     }
 
     #[test]

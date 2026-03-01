@@ -181,14 +181,19 @@ impl Config {
             window_names
         };
 
-        // Configure panes for each window
+        // Configure panes and layout for each window
         let mut windows = Vec::new();
         for name in names {
             let panes = Self::prompt_for_panes(&name)?;
+            let layout = if panes.len() > 1 {
+                ui::render_layout_prompt(&name, panes.len())?
+            } else {
+                None
+            };
             windows.push(crate::session::Window {
                 name,
                 panes,
-                layout: None,
+                layout,
             });
         }
 
@@ -346,6 +351,20 @@ mod tests {
     fn should_use_ui_parse_functions_for_window_names() {
         let result = ui::parse_comma_separated_list("editor, terminal, server");
         assert_eq!(result, vec!["editor", "terminal", "server"]);
+    }
+
+    #[test]
+    fn should_use_ui_parse_functions_for_layout() {
+        assert_eq!(ui::parse_layout_input(""), None);
+        assert_eq!(
+            ui::parse_layout_input("1"),
+            Some("main-horizontal".to_string())
+        );
+        assert_eq!(
+            ui::parse_layout_input("main-vertical"),
+            Some("main-vertical".to_string())
+        );
+        assert_eq!(ui::parse_layout_input("invalid"), None);
     }
 
     #[test]
