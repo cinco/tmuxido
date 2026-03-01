@@ -53,7 +53,7 @@ trigger:
   event:
     - tag
   ref:
-    - refs/tags/v*
+    - refs/tags/[0-9]*
 
 steps:
   - name: build-x86_64
@@ -79,7 +79,7 @@ steps:
         # Read DRONE_TAG via ENVIRON inside awk to avoid Drone's ${VAR} substitution
         # which would replace ${TAG} with an empty string before the shell runs.
         BODY=$(awk '
-          BEGIN { tag = ENVIRON["DRONE_TAG"]; gsub(/^v/, "", tag) }
+          BEGIN { tag = ENVIRON["DRONE_TAG"] }
           /^## \[/ { in_section = (index($0, "[" tag "]") > 0); next }
           in_section && /^## \[/ { exit }
           in_section { print }
