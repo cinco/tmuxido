@@ -6,6 +6,7 @@ use std::process::{Command, Stdio};
 use tmuxido::config::Config;
 use tmuxido::deps::ensure_dependencies;
 use tmuxido::self_update;
+use tmuxido::update_check;
 use tmuxido::{get_projects, launch_tmux_session, show_cache_status};
 
 #[derive(Parser, Debug)]
@@ -47,6 +48,9 @@ fn main() -> Result<()> {
 
     // Load config
     let config = Config::load()?;
+
+    // Periodic update check (silent on failure or no update)
+    update_check::check_and_notify(&config);
 
     // Handle cache status command
     if args.cache_status {

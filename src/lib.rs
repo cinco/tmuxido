@@ -4,6 +4,7 @@ pub mod deps;
 pub mod self_update;
 pub mod session;
 pub mod ui;
+pub mod update_check;
 
 use anyhow::Result;
 use cache::ProjectCache;
@@ -192,6 +193,7 @@ mod tests {
             max_depth: 3,
             cache_enabled,
             cache_ttl_hours: 24,
+            update_check_interval_hours: 24,
             default_session: session::SessionConfig { windows: vec![] },
         }
     }

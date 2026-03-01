@@ -27,7 +27,7 @@ fn detect_arch() -> Result<&'static str> {
 }
 
 /// Fetch latest release tag from Gitea API
-fn fetch_latest_tag() -> Result<String> {
+pub(crate) fn fetch_latest_tag() -> Result<String> {
     let url = format!("{}/api/v1/repos/{}/releases?limit=1&page=1", BASE_URL, REPO);
 
     let output = Command::new("curl")
@@ -166,7 +166,7 @@ pub fn self_update() -> Result<()> {
 }
 
 /// Compare two semver versions
-fn version_compare(a: &str, b: &str) -> std::cmp::Ordering {
+pub(crate) fn version_compare(a: &str, b: &str) -> std::cmp::Ordering {
     let parse = |s: &str| {
         s.split('.')
             .filter_map(|n| n.parse::<u32>().ok())
