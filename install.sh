@@ -1,8 +1,9 @@
 #!/bin/sh
 set -e
 
-REPO="cinco/Tmuxido"
-BASE_URL="https://git.cincoeuzebio.com"
+REPO="cinco/tmuxido"
+BASE_URL="https://github.com"
+API_URL="https://api.github.com"
 INSTALL_DIR="$HOME/.local/bin"
 
 arch=$(uname -m)
@@ -12,8 +13,10 @@ case "$arch" in
     *) echo "Unsupported architecture: $arch" >&2; exit 1 ;;
 esac
 
-tag=$(curl -fsSL "$BASE_URL/api/v1/repos/$REPO/releases?limit=1&page=1" \
-  | grep -o '"tag_name":"[^"]*"' | head -1 | cut -d'"' -f4)
+tag=$(curl -fsSL \
+  -H "Accept: application/vnd.github.v3+json" \
+  "$API_URL/repos/$REPO/releases/latest" \
+  | grep -o '"tag_name":"[^"]*"' | cut -d'"' -f4)
 
 [ -z "$tag" ] && { echo "Could not fetch latest release" >&2; exit 1; }
 

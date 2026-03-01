@@ -3,8 +3,9 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::process::Command;
 
-const REPO: &str = "cinco/Tmuxido";
-const BASE_URL: &str = "https://git.cincoeuzebio.com";
+const REPO: &str = "cinco/tmuxido";
+const BASE_URL: &str = "https://github.com";
+const API_BASE: &str = "https://api.github.com";
 
 /// Check if running from cargo (development mode)
 fn is_dev_build() -> bool {
@@ -26,12 +27,27 @@ fn detect_arch() -> Result<&'static str> {
     }
 }
 
-/// Fetch latest release tag from Gitea API
+/// Parse tag_name from a GitHub releases/latest JSON response
+fn parse_latest_tag(response: &str) -> Result<String> {
+    let tag: serde_json::Value =
+        serde_json::from_str(response).context("Failed to parse release API response")?;
+    tag.get("tag_name")
+        .and_then(|t| t.as_str())
+        .map(|t| t.to_string())
+        .ok_or_else(|| anyhow::anyhow!("Could not extract tag_name from release"))
+}
+
+/// Fetch latest release tag from GitHub API
 pub(crate) fn fetch_latest_tag() -> Result<String> {
-    let url = format!("{}/api/v1/repos/{}/releases?limit=1&page=1", BASE_URL, REPO);
+    let url = format!("{}/repos/{}/releases/latest", API_BASE, REPO);
 
     let output = Command::new("curl")
-        .args(["-fsSL", &url])
+        .args([
+            "-fsSL",
+            "-H",
+            "Accept: application/vnd.github.v3+json",
+            &url,
+        ])
         .output()
         .context("Failed to execute curl. Make sure curl is installed.")?;
 
@@ -42,17 +58,7 @@ pub(crate) fn fetch_latest_tag() -> Result<String> {
         ));
     }
 
-    let response = String::from_utf8_lossy(&output.stdout);
-
-    // Parse JSON response to extract tag_name
-    let tag: serde_json::Value =
-        serde_json::from_str(&response).context("Failed to parse release API response")?;
-
-    tag.get(0)
-        .and_then(|r| r.get("tag_name"))
-        .and_then(|t| t.as_str())
-        .map(|t| t.to_string())
-        .ok_or_else(|| anyhow::anyhow!("Could not extract tag_name from release"))
+    parse_latest_tag(&String::from_utf8_lossy(&output.stdout))
 }
 
 /// Get path to current executable
@@ -209,6 +215,23 @@ mod tests {
             arch.ends_with("-linux"),
             "asset name must end with '-linux', got: {arch}"
         );
+    }
+
+    #[test]
+    fn should_parse_tag_from_github_latest_release_response() {
+        let json = r#"{"tag_name":"0.7.0","name":"0.7.0","body":"release notes"}"#;
+        assert_eq!(parse_latest_tag(json).unwrap(), "0.7.0");
+    }
+
+    #[test]
+    fn should_return_error_when_tag_name_missing() {
+        let json = r#"{"name":"0.7.0","body":"no tag_name field"}"#;
+        assert!(parse_latest_tag(json).is_err());
+    }
+
+    #[test]
+    fn should_return_error_when_response_is_invalid_json() {
+        assert!(parse_latest_tag("not valid json").is_err());
     }
 
     #[test]
