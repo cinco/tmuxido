@@ -24,7 +24,9 @@ steps:
     commands:
       - apt-get update -qq && apt-get install -y -qq jq curl
       - |
-        PCT=$(cargo tarpaulin 2>&1 | grep -oE '[0-9]+\.[0-9]+% coverage' | cut -d'.' -f1)
+        PCT=$(cargo tarpaulin 2>&1 | awk '/coverage,/{print int($1)}')
+        echo "PCT=$PCT"
+        [ -z "$PCT" ] && PCT=0
         if [ "$PCT" -ge 80 ]; then COLOR="brightgreen"
         elif [ "$PCT" -ge 60 ]; then COLOR="yellow"
         else COLOR="red"; fi
