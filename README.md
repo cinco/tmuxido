@@ -30,7 +30,7 @@ A Rust-based tool to quickly find and open projects in tmux using fzf. No extern
 ## Installation
 
 ```sh
-curl -fsSL https://git.cincoeuzebio.com/cinco/Tmuxido/raw/branch/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/cinco/tmuxido/main/install.sh | sh
 ```
 
 Installs the latest release binary to `~/.local/bin/tmuxido`. On first run, the config file is created automatically at `~/.config/tmuxido/tmuxido.toml`.
@@ -123,7 +123,7 @@ tmuxido --help
 3. Presents them using fzf for selection
 4. Creates or switches to a tmux session for the selected project
 5. If a `.tmuxido.toml` config exists in the project, uses it to set up custom windows and panes
-6. Otherwise, creates a default session with two windows: "editor" and "terminal"
+6. Otherwise, uses the default session config from `~/.config/tmuxido/tmuxido.toml` (configured interactively on first run)
 
 ## Caching
 
