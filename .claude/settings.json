@@ -3,9 +3,13 @@
     "PostToolUse": [
       {
         "matcher": "Write|Edit",
-        "type": "command",
-        "command": "bash -c 'if [ -f Cargo.toml ]; then if command -v cargo-nextest >/dev/null 2>&1; then cargo nextest run 2>&1; else cargo test 2>&1; fi; fi'",
-        "timeout": 120
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'if [ -f Cargo.toml ]; then if command -v cargo-nextest >/dev/null 2>&1; then cargo nextest run 2>&1; else cargo test 2>&1; fi; fi'",
+            "timeout": 120
+          }
+        ]
       }
     ]
   }

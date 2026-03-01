@@ -9,6 +9,16 @@
       "type": "stdio",
       "command": "crates-mcp",
       "args": []
+    },
+    "drone-ci-mcp": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "drone-ci-mcp",
+        "--access-token=${DRONE_TOKEN}",
+        "--server-url=https://drone.cincoeuzebio.com"
+      ]
     }
   }
 }
+
