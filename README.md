@@ -1,7 +1,7 @@
 # tmuxido
 
 [![Build Status](https://drone.cincoeuzebio.com/api/badges/cinco/Tmuxido/status.svg)](https://drone.cincoeuzebio.com/cinco/Tmuxido)
-[![Coverage](https://git.cincoeuzebio.com/api/packages/cinco/generic/badges/latest/coverage.svg)](https://drone.cincoeuzebio.com/cinco/Tmuxido)
+[![Coverage](https://git.cincoeuzebio.com/cinco/Tmuxido/raw/branch/master/badges/coverage.svg)](https://drone.cincoeuzebio.com/cinco/Tmuxido)
 [![Version](https://img.shields.io/gitea/v/release/cinco/Tmuxido?gitea_url=https%3A%2F%2Fgit.cincoeuzebio.com&label=version)](https://git.cincoeuzebio.com/cinco/Tmuxido/releases)
 ![Rust 2024](https://img.shields.io/badge/rust-edition_2024-orange?logo=rust)
 

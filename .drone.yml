@@ -31,13 +31,21 @@ steps:
         else COLOR="red"; fi
         curl -sf "https://img.shields.io/badge/coverage-${PCT}%25-${COLOR}.svg" -o coverage.svg
       - |
-        curl -sf -X DELETE \
+        SHA=$(curl -sf \
           -H "Authorization: token $GITEA_TOKEN" \
-          "https://git.cincoeuzebio.com/api/packages/cinco/generic/badges/latest" || true
+          "https://git.cincoeuzebio.com/api/v1/repos/cinco/Tmuxido/contents/badges/coverage.svg?ref=master" \
+          | jq -r '.sha // empty')
+        CONTENT=$(base64 -w 0 coverage.svg)
+        if [ -n "$SHA" ]; then
+          PAYLOAD="{\"message\":\"ci: update coverage badge [CI SKIP]\",\"content\":\"$CONTENT\",\"sha\":\"$SHA\",\"branch\":\"master\"}"
+        else
+          PAYLOAD="{\"message\":\"ci: add coverage badge [CI SKIP]\",\"content\":\"$CONTENT\",\"branch\":\"master\"}"
+        fi
         curl -fsSL -X PUT \
           -H "Authorization: token $GITEA_TOKEN" \
-          -T coverage.svg \
-          "https://git.cincoeuzebio.com/api/packages/cinco/generic/badges/latest/coverage.svg"
+          -H "Content-Type: application/json" \
+          "https://git.cincoeuzebio.com/api/v1/repos/cinco/Tmuxido/contents/badges/coverage.svg" \
+          -d "$PAYLOAD"
 
 ---
 kind: pipeline
