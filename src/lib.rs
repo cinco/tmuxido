@@ -3,6 +3,7 @@ pub mod config;
 pub mod deps;
 pub mod self_update;
 pub mod session;
+pub mod shortcut;
 pub mod ui;
 pub mod update_check;
 
@@ -14,6 +15,10 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 use walkdir::WalkDir;
+
+pub fn setup_shortcut_wizard() -> Result<()> {
+    shortcut::setup_shortcut_wizard()
+}
 
 pub fn show_cache_status(config: &Config) -> Result<()> {
     if !config.cache_enabled {

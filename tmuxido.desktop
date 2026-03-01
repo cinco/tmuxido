@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Tmuxido
+Comment=Quickly find and open projects in tmux
+Exec=tmuxido
+Icon=tmuxido
+Type=Application
+Categories=Development;Utility;
+Terminal=true
+Keywords=tmux;project;fzf;dev;
+StartupWMClass=tmuxido

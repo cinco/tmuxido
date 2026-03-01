@@ -425,6 +425,134 @@ pub fn parse_cache_ttl_input(input: &str) -> Option<u64> {
     trimmed.parse::<u64>().ok().filter(|&n| n > 0)
 }
 
+// ============================================================================
+// Shortcut wizard UI
+// ============================================================================
+
+/// Render warning when the desktop environment could not be detected
+pub fn render_shortcut_unknown_de() {
+    let warning_style = Style::new().italic(true).foreground(color_orange());
+    println!(
+        "{}",
+        warning_style.render("  Desktop environment not detected. Skipping shortcut setup.")
+    );
+    println!(
+        "{}",
+        warning_style.render("  Run 'tmuxido --setup-shortcut' later when your DE is active.")
+    );
+}
+
+/// Ask the user whether to set up a keyboard shortcut. Returns `true` if yes.
+pub fn render_shortcut_setup_prompt() -> Result<bool> {
+    let prompt_style = Style::new().bold(true).foreground(color_green());
+    let hint_style = Style::new().italic(true).foreground(color_dark_gray());
+
+    println!(
+        "{}",
+        hint_style.render("    Set up a keyboard shortcut to launch tmuxido from anywhere?")
+    );
+    print!("  {} ", prompt_style.render("❯ Set up shortcut? (Y/n):"));
+    io::stdout().flush().context("Failed to flush stdout")?;
+
+    let mut input = String::new();
+    io::stdin()
+        .read_line(&mut input)
+        .context("Failed to read input")?;
+
+    let trimmed = input.trim().to_lowercase();
+    Ok(trimmed != "n" && trimmed != "no")
+}
+
+/// Ask the user for a key combo (shows the default in brackets).
+pub fn render_key_combo_prompt(default: &str) -> Result<String> {
+    let prompt_style = Style::new().bold(true).foreground(color_green());
+    let hint_style = Style::new().italic(true).foreground(color_dark_gray());
+
+    println!(
+        "{}",
+        hint_style.render(&format!(
+            "    Enter the key combo to launch tmuxido (default: {})",
+            default
+        ))
+    );
+    println!(
+        "{}",
+        hint_style.render("    💡 Example: Super+Shift+T, Super+Ctrl+P")
+    );
+    print!(
+        "  {} ",
+        prompt_style.render(&format!("❯ Key combo [{}]:", default))
+    );
+    io::stdout().flush().context("Failed to flush stdout")?;
+
+    let mut input = String::new();
+    io::stdin()
+        .read_line(&mut input)
+        .context("Failed to read input")?;
+    Ok(input.trim().to_string())
+}
+
+/// Show a conflict warning and ask whether to use the suggested alternative.
+/// Returns `true` if the user accepts the suggestion.
+pub fn render_shortcut_conflict_prompt(
+    combo: &str,
+    taken_by: &str,
+    suggestion: &str,
+) -> Result<bool> {
+    let warning_style = Style::new().foreground(color_orange());
+    let prompt_style = Style::new().bold(true).foreground(color_green());
+    let hint_style = Style::new().italic(true).foreground(color_dark_gray());
+
+    println!(
+        "{}",
+        warning_style.render(&format!(
+            "  ⚠️  {} is already taken by: {}",
+            combo, taken_by
+        ))
+    );
+    println!(
+        "{}",
+        hint_style.render(&format!("    Use {} instead?", suggestion))
+    );
+    print!("  {} ", prompt_style.render("❯ Use suggestion? (Y/n):"));
+    io::stdout().flush().context("Failed to flush stdout")?;
+
+    let mut input = String::new();
+    io::stdin()
+        .read_line(&mut input)
+        .context("Failed to read input")?;
+
+    let trimmed = input.trim().to_lowercase();
+    Ok(trimmed != "n" && trimmed != "no")
+}
+
+/// Render a success message after the shortcut has been written
+pub fn render_shortcut_success(de: &str, combo: &str, details: &str, reload_hint: &str) {
+    let success_style = Style::new().bold(true).foreground(color_green());
+    let label_style = Style::new().foreground(color_light_gray());
+    let value_style = Style::new().bold(true).foreground(color_blue());
+    let info_style = Style::new().foreground(color_dark_gray());
+
+    println!();
+    println!("{}", success_style.render("  ⌨️  Shortcut configured!"));
+    println!(
+        "    {} {}",
+        label_style.render("Combo:"),
+        value_style.render(combo)
+    );
+    println!(
+        "    {} {}",
+        label_style.render("Desktop:"),
+        value_style.render(de)
+    );
+    println!("    {}", info_style.render(details));
+    println!();
+    println!("    {}", info_style.render(reload_hint));
+    println!();
+}
+
+// ============================================================================
+
 /// Parse comma-separated list into Vec<String>, filtering empty items
 pub fn parse_comma_separated_list(input: &str) -> Vec<String> {
     input
@@ -650,5 +778,20 @@ mod tests {
             layout: None,
         }];
         render_config_created(&vec!["~/work".to_string()], 3, false, 24, &windows);
+    }
+
+    #[test]
+    fn render_shortcut_unknown_de_should_not_panic() {
+        render_shortcut_unknown_de();
+    }
+
+    #[test]
+    fn render_shortcut_success_should_not_panic() {
+        render_shortcut_success(
+            "Hyprland",
+            "Super+Shift+T",
+            "Added to ~/.config/hypr/bindings.conf",
+            "Reload Hyprland with Super+Shift+R to activate.",
+        );
     }
 }

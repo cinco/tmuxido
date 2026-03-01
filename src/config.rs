@@ -125,6 +125,11 @@ impl Config {
             fs::write(&config_path, toml_string).with_context(|| {
                 format!("Failed to write config file: {}", config_path.display())
             })?;
+
+            // Offer to set up a keyboard shortcut (best-effort, non-fatal)
+            if let Err(e) = crate::shortcut::setup_shortcut_wizard() {
+                eprintln!("Warning: shortcut setup failed: {}", e);
+            }
         }
 
         Ok(config_path)

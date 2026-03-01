@@ -25,6 +25,7 @@ A Rust-based tool to quickly find and open projects in tmux using fzf. No extern
 - Smart caching system for fast subsequent runs
 - Configurable cache TTL
 - Self-update capability (`tmuxido --update`)
+- Keyboard shortcut setup for Hyprland, GNOME, and KDE (`tmuxido --setup-shortcut`)
 - Zero external dependencies (except tmux and fzf)
 
 ## Installation
@@ -105,6 +106,13 @@ Update tmuxido to the latest version:
 ```bash
 tmuxido --update
 ```
+
+Set up a desktop keyboard shortcut (Hyprland, GNOME, KDE):
+```bash
+tmuxido --setup-shortcut
+```
+
+This is also offered automatically on first run. Re-run it any time to reconfigure the shortcut or after switching desktop environments.
 
 View help:
 ```bash

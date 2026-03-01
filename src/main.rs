@@ -7,7 +7,7 @@ use tmuxido::config::Config;
 use tmuxido::deps::ensure_dependencies;
 use tmuxido::self_update;
 use tmuxido::update_check;
-use tmuxido::{get_projects, launch_tmux_session, show_cache_status};
+use tmuxido::{get_projects, launch_tmux_session, setup_shortcut_wizard, show_cache_status};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -30,6 +30,10 @@ struct Args {
     /// Update tmuxido to the latest version
     #[arg(long)]
     update: bool,
+
+    /// Set up a keyboard shortcut to launch tmuxido
+    #[arg(long)]
+    setup_shortcut: bool,
 }
 
 fn main() -> Result<()> {
@@ -38,6 +42,11 @@ fn main() -> Result<()> {
     // Handle self-update before anything else
     if args.update {
         return self_update::self_update();
+    }
+
+    // Handle standalone shortcut setup
+    if args.setup_shortcut {
+        return setup_shortcut_wizard();
     }
 
     // Check that fzf and tmux are installed; offer to install if missing
