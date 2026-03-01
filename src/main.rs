@@ -40,7 +40,7 @@ struct Args {
 
     /// Install the .desktop entry and icon for app launcher integration
     #[arg(long)]
-    create_desktop_shortcut: bool,
+    setup_desktop_shortcut: bool,
 }
 
 fn main() -> Result<()> {
@@ -57,7 +57,7 @@ fn main() -> Result<()> {
     }
 
     // Handle standalone desktop integration setup
-    if args.create_desktop_shortcut {
+    if args.setup_desktop_shortcut {
         return setup_desktop_integration_wizard();
     }
 

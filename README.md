@@ -114,7 +114,7 @@ tmuxido --setup-shortcut
 
 Install the `.desktop` entry and icon (so tmuxido appears in app launchers like Walker/Rofi):
 ```bash
-tmuxido --create-desktop-shortcut
+tmuxido --setup-desktop-shortcut
 ```
 
 Both are also offered automatically on first run. Re-run them any time to reconfigure.
