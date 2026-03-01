@@ -1,17 +1,16 @@
 <div align="center">
   <img src="docs/assets/tmuxido-logo.png" alt="tmuxido logo" width="200"/>
 </div>
-
-# tmuxido
-
 <div align="center">
 
 [![Build Status](https://drone.cincoeuzebio.com/api/badges/cinco/Tmuxido/status.svg)](https://drone.cincoeuzebio.com/cinco/Tmuxido)
 [![Coverage](https://git.cincoeuzebio.com/cinco/Tmuxido/raw/branch/badges/coverage.svg)](https://drone.cincoeuzebio.com/cinco/Tmuxido)
 [![Version](https://img.shields.io/gitea/v/release/cinco/Tmuxido?gitea_url=https%3A%2F%2Fgit.cincoeuzebio.com&label=version)](https://git.cincoeuzebio.com/cinco/Tmuxido/releases)
-![Rust 2024](https://img.shields.io/badge/rust-edition_2024-orange?logo=rust)
+![Rust 2026](https://img.shields.io/badge/rust-edition_2026-orange?logo=rust)
 
 </div>
+
+# tmuxido
 
 A Rust-based tool to quickly find and open projects in tmux using fzf. No external dependencies except tmux and fzf!
 
