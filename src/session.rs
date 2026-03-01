@@ -41,7 +41,6 @@ impl SessionConfig {
 pub struct TmuxSession {
     pub(crate) session_name: String,
     project_path: String,
-    base_index: usize,
 }
 
 impl TmuxSession {
@@ -53,32 +52,10 @@ impl TmuxSession {
             .replace('.', "_")
             .replace(' ', "-");
 
-        let base_index = Self::get_base_index();
-
         Self {
             session_name,
             project_path: project_path.display().to_string(),
-            base_index,
         }
-    }
-
-    fn get_base_index() -> usize {
-        // Try to get base-index from tmux
-        let output = Command::new("tmux")
-            .args(["show-options", "-gv", "base-index"])
-            .output();
-
-        if let Ok(output) = output
-            && output.status.success()
-        {
-            let index_str = String::from_utf8_lossy(&output.stdout);
-            if let Ok(index) = index_str.trim().parse::<usize>() {
-                return index;
-            }
-        }
-
-        // Default to 0 if we can't determine
-        0
     }
 
     pub fn create(&self, config: &SessionConfig) -> Result<()> {
@@ -167,25 +144,23 @@ impl TmuxSession {
             .status()
             .context("Failed to create tmux session")?;
 
-        // Create panes for first window if specified
+        let first_target = format!("{}:{}", self.session_name, first_window.name);
+
         if !first_window.panes.is_empty() {
-            self.create_panes(self.base_index, &first_window.panes)?;
+            self.create_panes(&first_target, &first_window.panes)?;
         }
 
-        // Apply layout for first window if specified
         if let Some(layout) = &first_window.layout {
-            self.apply_layout(self.base_index, layout)?;
+            self.apply_layout(&first_target, layout)?;
         }
 
-        // Create additional windows
-        for (index, window) in config.windows.iter().skip(1).enumerate() {
-            let window_index = self.base_index + index + 1;
-
+        // Create additional windows, targeting by session name so tmux auto-assigns the index
+        for window in config.windows.iter().skip(1) {
             Command::new("tmux")
                 .args([
                     "new-window",
                     "-t",
-                    &format!("{}:{}", self.session_name, window_index),
+                    &self.session_name,
                     "-n",
                     &window.name,
                     "-c",
@@ -194,46 +169,44 @@ impl TmuxSession {
                 .status()
                 .with_context(|| format!("Failed to create window: {}", window.name))?;
 
-            // Create panes if specified
+            let target = format!("{}:{}", self.session_name, window.name);
+
             if !window.panes.is_empty() {
-                self.create_panes(window_index, &window.panes)?;
+                self.create_panes(&target, &window.panes)?;
             }
 
-            // Apply layout if specified
             if let Some(layout) = &window.layout {
-                self.apply_layout(window_index, layout)?;
+                self.apply_layout(&target, layout)?;
             }
         }
 
-        // Select the first window
+        // Select the first window by name
         Command::new("tmux")
-            .args([
-                "select-window",
-                "-t",
-                &format!("{}:{}", self.session_name, self.base_index),
-            ])
+            .args(["select-window", "-t", &first_target])
             .status()
             .context("Failed to select first window")?;
 
         Ok(())
     }
 
-    fn create_panes(&self, window_index: usize, panes: &[String]) -> Result<()> {
+    fn create_panes(&self, window_target: &str, panes: &[String]) -> Result<()> {
         for (pane_index, command) in panes.iter().enumerate() {
-            let target = format!("{}:{}", self.session_name, window_index);
-
             // First pane already exists (created with the window), skip split
             if pane_index > 0 {
-                // Create new pane by splitting
                 Command::new("tmux")
-                    .args(["split-window", "-t", &target, "-c", &self.project_path])
+                    .args([
+                        "split-window",
+                        "-t",
+                        window_target,
+                        "-c",
+                        &self.project_path,
+                    ])
                     .status()
                     .context("Failed to split pane")?;
             }
 
-            // Send the command to the pane if it's not empty
             if !command.is_empty() {
-                let pane_target = format!("{}:{}.{}", self.session_name, window_index, pane_index);
+                let pane_target = format!("{}.{}", window_target, pane_index);
                 Command::new("tmux")
                     .args(["send-keys", "-t", &pane_target, command, "Enter"])
                     .status()
@@ -244,14 +217,9 @@ impl TmuxSession {
         Ok(())
     }
 
-    fn apply_layout(&self, window_index: usize, layout: &str) -> Result<()> {
+    fn apply_layout(&self, window_target: &str, layout: &str) -> Result<()> {
         Command::new("tmux")
-            .args([
-                "select-layout",
-                "-t",
-                &format!("{}:{}", self.session_name, window_index),
-                layout,
-            ])
+            .args(["select-layout", "-t", window_target, layout])
             .status()
             .with_context(|| format!("Failed to apply layout: {}", layout))?;
 
