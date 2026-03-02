@@ -107,6 +107,14 @@ impl Config {
                     Self::run_wizard(&config_path)?;
                 }
             }
+
+            // Offer shortcut and desktop integration regardless of setup mode
+            if let Err(e) = crate::shortcut::setup_shortcut_wizard() {
+                eprintln!("Warning: shortcut setup failed: {}", e);
+            }
+            if let Err(e) = crate::shortcut::setup_desktop_integration_wizard() {
+                eprintln!("Warning: desktop integration failed: {}", e);
+            }
         }
 
         Ok(config_path)
@@ -147,19 +155,7 @@ impl Config {
         let toml_string = toml::to_string_pretty(&config).context("Failed to serialize config")?;
 
         fs::write(config_path, toml_string)
-            .with_context(|| format!("Failed to write config file: {}", config_path.display()))?;
-
-        // Offer to set up a keyboard shortcut (best-effort, non-fatal)
-        if let Err(e) = crate::shortcut::setup_shortcut_wizard() {
-            eprintln!("Warning: shortcut setup failed: {}", e);
-        }
-
-        // Offer to install .desktop entry + icon (best-effort, non-fatal)
-        if let Err(e) = crate::shortcut::setup_desktop_integration_wizard() {
-            eprintln!("Warning: desktop integration failed: {}", e);
-        }
-
-        Ok(())
+            .with_context(|| format!("Failed to write config file: {}", config_path.display()))
     }
 
     fn prompt_for_paths() -> Result<Vec<String>> {
