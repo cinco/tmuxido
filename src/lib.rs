@@ -55,7 +55,45 @@ pub fn get_projects(config: &Config, force_refresh: bool) -> Result<Vec<PathBuf>
         &ProjectCache::load,
         &|cache| cache.save(),
         &scan_all_roots,
+        &spawn_background_refresh,
     )
+}
+
+/// Rebuilds the project cache incrementally. Intended to be called from a
+/// background process spawned by `get_projects` via stale-while-revalidate.
+pub fn refresh_cache(config: &Config) -> Result<()> {
+    match ProjectCache::load()? {
+        None => {
+            let (projects, fingerprints) = scan_all_roots(config)?;
+            ProjectCache::new(projects, fingerprints).save()?;
+        }
+        Some(mut cache) => {
+            if cache.dir_mtimes.is_empty() {
+                // Old cache format — full rescan
+                let (projects, fingerprints) = scan_all_roots(config)?;
+                ProjectCache::new(projects, fingerprints).save()?;
+            } else {
+                // Incremental rescan based on directory mtimes
+                let changed = cache.validate_and_update(&|root| scan_from_root(root, config))?;
+                if changed {
+                    cache.save()?;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn spawn_background_refresh() {
+    if let Ok(exe) = std::env::current_exe() {
+        std::process::Command::new(exe)
+            .arg("--background-refresh")
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .ok();
+    }
 }
 
 #[allow(clippy::type_complexity)]
@@ -65,45 +103,31 @@ fn get_projects_internal(
     cache_loader: &dyn Fn() -> Result<Option<ProjectCache>>,
     cache_saver: &dyn Fn(&ProjectCache) -> Result<()>,
     scanner: &dyn Fn(&Config) -> Result<(Vec<PathBuf>, HashMap<PathBuf, u64>)>,
+    refresh_spawner: &dyn Fn(),
 ) -> Result<Vec<PathBuf>> {
     if !config.cache_enabled || force_refresh {
         let (projects, fingerprints) = scanner(config)?;
         let cache = ProjectCache::new(projects.clone(), fingerprints);
         cache_saver(&cache)?;
-        eprintln!("Cache updated with {} projects", projects.len());
         return Ok(projects);
     }
 
-    if let Some(mut cache) = cache_loader()? {
-        // Cache no formato antigo (sem dir_mtimes) → atualizar com rescan completo
-        if cache.dir_mtimes.is_empty() {
-            eprintln!("Upgrading cache, scanning for projects...");
-            let (projects, fingerprints) = scanner(config)?;
-            let new_cache = ProjectCache::new(projects.clone(), fingerprints);
-            cache_saver(&new_cache)?;
-            eprintln!("Cache updated with {} projects", projects.len());
-            return Ok(projects);
-        }
-
-        let changed = cache.validate_and_update(&|root| scan_from_root(root, config))?;
-        if changed {
-            cache_saver(&cache)?;
-            eprintln!(
-                "Cache updated incrementally ({} projects)",
-                cache.projects.len()
-            );
-        } else {
-            eprintln!("Using cached projects ({} projects)", cache.projects.len());
+    if let Some(cache) = cache_loader()? {
+        // Cache exists — return immediately (stale-while-revalidate).
+        // Spawn a background refresh if the cache is stale or in old format.
+        let is_stale =
+            cache.dir_mtimes.is_empty() || cache.age_in_seconds() > config.cache_ttl_hours * 3600;
+        if is_stale {
+            refresh_spawner();
         }
         return Ok(cache.projects);
     }
 
-    // Sem cache ainda — scan completo inicial
+    // No cache yet — first run, blocking scan is unavoidable.
     eprintln!("No cache found, scanning for projects...");
     let (projects, fingerprints) = scanner(config)?;
     let cache = ProjectCache::new(projects.clone(), fingerprints);
     cache_saver(&cache)?;
-    eprintln!("Cache updated with {} projects", projects.len());
     Ok(projects)
 }
 
@@ -196,242 +220,208 @@ mod tests {
     use super::*;
     use std::cell::RefCell;
 
-    fn create_test_config(cache_enabled: bool) -> Config {
+    fn make_config(cache_enabled: bool, cache_ttl_hours: u64) -> Config {
         Config {
             paths: vec!["/tmp/test".to_string()],
             max_depth: 3,
             cache_enabled,
-            cache_ttl_hours: 24,
+            cache_ttl_hours,
             update_check_interval_hours: 24,
             default_session: session::SessionConfig { windows: vec![] },
         }
     }
 
+    fn fresh_cache(projects: Vec<PathBuf>) -> ProjectCache {
+        let fingerprints = HashMap::from([(PathBuf::from("/tracked"), 1u64)]);
+        ProjectCache::new(projects, fingerprints)
+        // last_updated = now_secs() — within any reasonable TTL
+    }
+
+    fn stale_cache(projects: Vec<PathBuf>) -> ProjectCache {
+        let fingerprints = HashMap::from([(PathBuf::from("/tracked"), 1u64)]);
+        let mut c = ProjectCache::new(projects, fingerprints);
+        c.last_updated = 0; // epoch — always older than TTL
+        c
+    }
+
+    fn call_internal(
+        config: &Config,
+        force_refresh: bool,
+        cache_loader: &dyn Fn() -> Result<Option<ProjectCache>>,
+        cache_saver: &dyn Fn(&ProjectCache) -> Result<()>,
+        scanner: &dyn Fn(&Config) -> Result<(Vec<PathBuf>, HashMap<PathBuf, u64>)>,
+        refresh_spawner: &dyn Fn(),
+    ) -> Result<Vec<PathBuf>> {
+        get_projects_internal(
+            config,
+            force_refresh,
+            cache_loader,
+            cache_saver,
+            scanner,
+            refresh_spawner,
+        )
+    }
+
     #[test]
     fn should_scan_when_cache_disabled() {
-        let config = create_test_config(false);
-        let projects = vec![PathBuf::from("/tmp/test/project1")];
-        let fingerprints = HashMap::new();
-        let expected_projects = projects.clone();
-
+        let config = make_config(false, 24);
+        let expected = vec![PathBuf::from("/p1")];
         let scanner_called = RefCell::new(false);
         let saver_called = RefCell::new(false);
+        let spawner_called = RefCell::new(false);
 
-        let result = get_projects_internal(
+        let result = call_internal(
             &config,
             false,
-            &|| panic!("should not load cache when disabled"),
+            &|| panic!("loader must not be called when cache disabled"),
             &|_| {
                 *saver_called.borrow_mut() = true;
                 Ok(())
             },
             &|_| {
                 *scanner_called.borrow_mut() = true;
-                Ok((expected_projects.clone(), fingerprints.clone()))
+                Ok((expected.clone(), HashMap::new()))
             },
+            &|| *spawner_called.borrow_mut() = true,
         );
 
         assert!(result.is_ok());
         assert!(scanner_called.into_inner());
         assert!(saver_called.into_inner());
-        assert_eq!(result.unwrap(), projects);
+        assert!(!spawner_called.into_inner());
+        assert_eq!(result.unwrap(), expected);
     }
 
     #[test]
     fn should_scan_when_force_refresh() {
-        let config = create_test_config(true);
-        let projects = vec![PathBuf::from("/tmp/test/project1")];
-        let fingerprints = HashMap::new();
-        let expected_projects = projects.clone();
-
+        let config = make_config(true, 24);
+        let expected = vec![PathBuf::from("/p1")];
         let scanner_called = RefCell::new(false);
         let saver_called = RefCell::new(false);
+        let spawner_called = RefCell::new(false);
 
-        let result = get_projects_internal(
+        let result = call_internal(
             &config,
             true,
-            &|| panic!("should not load cache when force refresh"),
+            &|| panic!("loader must not be called on force refresh"),
             &|_| {
                 *saver_called.borrow_mut() = true;
                 Ok(())
             },
             &|_| {
                 *scanner_called.borrow_mut() = true;
-                Ok((expected_projects.clone(), fingerprints.clone()))
+                Ok((expected.clone(), HashMap::new()))
             },
+            &|| *spawner_called.borrow_mut() = true,
         );
 
         assert!(result.is_ok());
         assert!(scanner_called.into_inner());
         assert!(saver_called.into_inner());
-        assert_eq!(result.unwrap(), projects);
+        assert!(!spawner_called.into_inner());
+        assert_eq!(result.unwrap(), expected);
     }
 
     #[test]
-    fn should_do_initial_scan_when_no_cache_exists() {
-        let config = create_test_config(true);
-        let projects = vec![PathBuf::from("/tmp/test/project1")];
-        let fingerprints = HashMap::new();
-        let expected_projects = projects.clone();
-
-        let loader_called = RefCell::new(false);
+    fn should_do_blocking_scan_when_no_cache_exists() {
+        let config = make_config(true, 24);
+        let expected = vec![PathBuf::from("/p1")];
         let scanner_called = RefCell::new(false);
         let saver_called = RefCell::new(false);
+        let spawner_called = RefCell::new(false);
 
-        let result = get_projects_internal(
+        let result = call_internal(
             &config,
             false,
-            &|| {
-                *loader_called.borrow_mut() = true;
-                Ok(None)
-            },
+            &|| Ok(None),
             &|_| {
                 *saver_called.borrow_mut() = true;
                 Ok(())
             },
             &|_| {
                 *scanner_called.borrow_mut() = true;
-                Ok((expected_projects.clone(), fingerprints.clone()))
+                Ok((expected.clone(), HashMap::new()))
             },
+            &|| *spawner_called.borrow_mut() = true,
         );
 
         assert!(result.is_ok());
-        assert!(loader_called.into_inner());
         assert!(scanner_called.into_inner());
         assert!(saver_called.into_inner());
-        assert_eq!(result.unwrap(), projects);
+        assert!(!spawner_called.into_inner());
+        assert_eq!(result.unwrap(), expected);
     }
 
     #[test]
-    fn should_upgrade_old_cache_format() {
-        let config = create_test_config(true);
-        let old_projects = vec![PathBuf::from("/old/project")];
-        let new_projects = vec![
-            PathBuf::from("/new/project1"),
-            PathBuf::from("/new/project2"),
-        ];
-        let new_fingerprints = HashMap::from([(PathBuf::from("/new"), 12345u64)]);
+    fn should_return_cached_projects_immediately_when_cache_is_fresh() {
+        let config = make_config(true, 24);
+        let cached = vec![PathBuf::from("/cached/project")];
+        let cache = RefCell::new(Some(fresh_cache(cached.clone())));
+        let spawner_called = RefCell::new(false);
 
-        // Use RefCell<Option<>> to allow moving into closure multiple times
-        let old_cache = RefCell::new(Some(ProjectCache::new(old_projects, HashMap::new())));
-
-        let loader_called = RefCell::new(false);
-        let scanner_called = RefCell::new(false);
-        let saver_count = RefCell::new(0);
-
-        let result = get_projects_internal(
+        let result = call_internal(
             &config,
             false,
-            &|| {
-                *loader_called.borrow_mut() = true;
-                // Take the cache out of the RefCell
-                Ok(old_cache.borrow_mut().take())
-            },
-            &|_| {
-                *saver_count.borrow_mut() += 1;
-                Ok(())
-            },
-            &|_| {
-                *scanner_called.borrow_mut() = true;
-                Ok((new_projects.clone(), new_fingerprints.clone()))
-            },
+            &|| Ok(cache.borrow_mut().take()),
+            &|_| panic!("saver must not be called in foreground"),
+            &|_| panic!("scanner must not be called when cache is fresh"),
+            &|| *spawner_called.borrow_mut() = true,
         );
 
         assert!(result.is_ok());
-        assert!(loader_called.into_inner());
-        assert!(scanner_called.into_inner());
-        assert_eq!(*saver_count.borrow(), 1);
-        assert_eq!(result.unwrap(), new_projects);
+        assert_eq!(result.unwrap(), cached);
+        assert!(
+            !spawner_called.into_inner(),
+            "fresh cache should not trigger background refresh"
+        );
     }
 
     #[test]
-    fn should_use_cached_projects_when_nothing_changed() {
-        let config = create_test_config(true);
-        let cached_projects = vec![
-            PathBuf::from("/nonexistent/project1"),
-            PathBuf::from("/nonexistent/project2"),
-        ];
-        // Use a path that doesn't exist - validate_and_update will skip rescan
-        // because it can't check mtime of non-existent directory
-        let cached_fingerprints =
-            HashMap::from([(PathBuf::from("/definitely_nonexistent_path_xyz"), 12345u64)]);
+    fn should_return_stale_cache_immediately_and_spawn_background_refresh() {
+        let config = make_config(true, 24);
+        let cached = vec![PathBuf::from("/cached/project")];
+        let cache = RefCell::new(Some(stale_cache(cached.clone())));
+        let spawner_called = RefCell::new(false);
 
-        // Use RefCell<Option<>> to allow moving into closure multiple times
-        let cache = RefCell::new(Some(ProjectCache::new(
-            cached_projects.clone(),
-            cached_fingerprints,
-        )));
-
-        let loader_called = RefCell::new(false);
-        let scanner_called = RefCell::new(false);
-        let saver_count = RefCell::new(0);
-
-        let result = get_projects_internal(
+        let result = call_internal(
             &config,
             false,
-            &|| {
-                *loader_called.borrow_mut() = true;
-                // Take the cache out of the RefCell
-                Ok(cache.borrow_mut().take())
-            },
-            &|_| {
-                *saver_count.borrow_mut() += 1;
-                Ok(())
-            },
-            &|_| {
-                *scanner_called.borrow_mut() = true;
-                panic!("should not do full scan when cache is valid")
-            },
+            &|| Ok(cache.borrow_mut().take()),
+            &|_| panic!("saver must not be called in foreground"),
+            &|_| panic!("scanner must not be called in foreground"),
+            &|| *spawner_called.borrow_mut() = true,
         );
 
         assert!(result.is_ok());
-        assert!(loader_called.into_inner());
-        // Note: When the directory in dir_mtimes doesn't exist, validate_and_update
-        // treats it as "changed" and removes projects under that path.
-        // This test verifies the flow completes - the specific behavior of
-        // validate_and_update is tested separately in cache.rs
-        let result_projects = result.unwrap();
-        // Projects were removed because the tracked directory doesn't exist
-        assert!(result_projects.is_empty());
+        assert_eq!(result.unwrap(), cached);
+        assert!(
+            spawner_called.into_inner(),
+            "stale cache must trigger background refresh"
+        );
     }
 
     #[test]
-    fn should_update_incrementally_when_cache_changed() {
-        let config = create_test_config(true);
-        let initial_projects = vec![PathBuf::from("/nonexistent/project1")];
-        // Use a path that doesn't exist - validate_and_update will treat missing
-        // directory as a change (unwrap_or(true) in the mtime check)
-        let mut dir_mtimes = HashMap::new();
-        dir_mtimes.insert(PathBuf::from("/definitely_nonexistent_path_abc"), 0u64);
+    fn should_spawn_background_refresh_when_cache_has_no_fingerprints() {
+        let config = make_config(true, 24);
+        let cached = vec![PathBuf::from("/old/project")];
+        // Old cache format: no dir_mtimes
+        let old_cache = RefCell::new(Some(ProjectCache::new(cached.clone(), HashMap::new())));
+        let spawner_called = RefCell::new(false);
 
-        // Use RefCell<Option<>> to allow moving into closure multiple times
-        let cache = RefCell::new(Some(ProjectCache::new(initial_projects, dir_mtimes)));
-
-        let loader_called = RefCell::new(false);
-        let saver_called = RefCell::new(false);
-
-        let result = get_projects_internal(
+        let result = call_internal(
             &config,
             false,
-            &|| {
-                *loader_called.borrow_mut() = true;
-                // Take the cache out of the RefCell
-                Ok(cache.borrow_mut().take())
-            },
-            &|_| {
-                *saver_called.borrow_mut() = true;
-                Ok(())
-            },
-            &|_| panic!("full scan should not happen with incremental update"),
+            &|| Ok(old_cache.borrow_mut().take()),
+            &|_| panic!("saver must not be called in foreground"),
+            &|_| panic!("scanner must not be called in foreground"),
+            &|| *spawner_called.borrow_mut() = true,
         );
 
-        // validate_and_update is called internally. Since the directory doesn't exist,
-        // it treats it as "changed" and will try to rescan using scan_from_root.
-        // We verify the flow completes without panicking.
-
         assert!(result.is_ok());
-        assert!(loader_called.into_inner());
-        // Note: The saver may or may not be called depending on whether
-        // validate_and_update detects changes (missing dir = change)
+        assert_eq!(result.unwrap(), cached);
+        assert!(
+            spawner_called.into_inner(),
+            "old cache format must trigger background refresh"
+        );
     }
 }

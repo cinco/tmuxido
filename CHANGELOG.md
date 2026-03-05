@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.2] - 2026-03-04
+
+### Changed
+- Cache now uses stale-while-revalidate: cached projects are returned immediately and a background process (`--background-refresh`) rebuilds the cache when it is stale, eliminating blocking scans on every invocation
+- `cache_ttl_hours` is now enforced: when the cache age exceeds the configured TTL, a background refresh is triggered automatically
+
 ## [0.9.1] - 2026-03-01
 
 ### Fixed

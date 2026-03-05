@@ -8,8 +8,8 @@ use tmuxido::deps::ensure_dependencies;
 use tmuxido::self_update;
 use tmuxido::update_check;
 use tmuxido::{
-    get_projects, launch_tmux_session, setup_desktop_integration_wizard, setup_shortcut_wizard,
-    show_cache_status,
+    get_projects, launch_tmux_session, refresh_cache, setup_desktop_integration_wizard,
+    setup_shortcut_wizard, show_cache_status,
 };
 
 #[derive(Parser, Debug)]
@@ -41,6 +41,10 @@ struct Args {
     /// Install the .desktop entry and icon for app launcher integration
     #[arg(long)]
     setup_desktop_shortcut: bool,
+
+    /// Internal: rebuild cache in background (used by stale-while-revalidate)
+    #[arg(long, hide = true)]
+    background_refresh: bool,
 }
 
 fn main() -> Result<()> {
@@ -49,6 +53,13 @@ fn main() -> Result<()> {
     // Handle self-update before anything else
     if args.update {
         return self_update::self_update();
+    }
+
+    // Handle background cache refresh (spawned internally by stale-while-revalidate).
+    // Runs early to avoid unnecessary dependency checks and config prompts.
+    if args.background_refresh {
+        let config = Config::load()?;
+        return refresh_cache(&config);
     }
 
     // Handle standalone shortcut setup
