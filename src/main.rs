@@ -116,8 +116,34 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+fn readme_preview_command() -> String {
+    let glow_available = Command::new("sh")
+        .args(["-c", "command -v glow"])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+    // CLICOLOR_FORCE=1 tells termenv (used by glow/glamour) to enable ANSI
+    // colors even when stdout is not a TTY (fzf preview runs in a pipe).
+    // Without it, glow falls back to bold-only "notty" style with no colors.
+    // Use `sh -c '...' -- {}` so the command runs in POSIX sh regardless of
+    // the user's $SHELL (fish, zsh, bash, etc.).
+    let viewer_cmd = if glow_available {
+        "CLICOLOR_FORCE=1 glow -s dark"
+    } else {
+        "cat"
+    };
+    format!(
+        r#"sh -c 'readme="$1/README.md"; [ -f "$readme" ] && {viewer_cmd} "$readme" || echo "No README.md"' -- {{}}"#
+    )
+}
+
 fn select_project_with_fzf(projects: &[PathBuf]) -> Result<PathBuf> {
+    let preview_cmd = readme_preview_command();
     let mut child = Command::new("fzf")
+        .arg("--preview")
+        .arg(&preview_cmd)
+        .arg("--preview-window")
+        .arg("right:40%")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()

@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.10.0] - 2026-03-05
+
+### Added
+- fzf preview panel: hovering over a project shows its `README.md` in the right 40% of the screen
+- Uses `glow` for rendered markdown when available, falls back to `cat`
+- `CLICOLOR_FORCE=1` ensures glow outputs full ANSI colors even in fzf's non-TTY preview pipe
+- Preview command runs via `sh -c '...' -- {}` for compatibility with fish, zsh, and bash
+
 ## [0.9.2] - 2026-03-04
 
 ### Changed

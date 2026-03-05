@@ -17,7 +17,7 @@ A Rust-based tool to quickly find and open projects in tmux using fzf. No extern
 ## Features
 
 - Search for git repositories in configurable paths
-- Interactive selection using fzf
+- Interactive selection using fzf with live `README.md` preview (rendered via `glow` when available)
 - Native tmux session creation (no tmuxinator required!)
 - Support for project-specific `.tmuxido.toml` configs
 - Smart session switching (reuses existing sessions)
